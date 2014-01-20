@@ -38,8 +38,7 @@ There are currently three types of noice reduction. They appear in order
 
 Install instructions
 ====================
-make
-./dotdetector [server ip] [server port]
+make && ./dotdetector [server ip] [server port]
 
 On rasberry pi
 -------------
