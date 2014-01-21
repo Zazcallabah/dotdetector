@@ -58,23 +58,25 @@ int initDDclient(const char *serverAddress, const int serverPort) {
 }
 
 // Parses a single point formated as by the dot detector
+// Input: result - A pointer to where the result should be stored
+//        strPoint - The point to parse
 // Returns: 1 if successful, 0 if failed
-int parsePoint( int* result, char* strPoint ) {
-    int x, y;
+int parsePoint( float* result, char* strPoint ) {
+    float x, y;
     char * parts = strtok( strPoint, "," );
 
     if( parts == NULL ) {
         fprintf( stderr, "parsePoint: Malformed input: \"%s\"\n", strPoint );
         return 0;
     }
-    x = atoi(parts);
+    x = atof(parts);
 
     parts = strtok( NULL, "," );
     if( parts == NULL ) {
         fprintf( stderr, "parsePoint: Malformed input: \"%s\"\n", strPoint );
         return 0;
     }
-    y = atoi(parts);
+    y = atof(parts);
 
     result[0] = x;
     result[1] = y;
@@ -82,10 +84,10 @@ int parsePoint( int* result, char* strPoint ) {
 }
 
 // Parses to full string from the dot detector.
-// Input: points - The pointer to an array of int points[MAX_POINTS][2], where the result will be stored
+// Input: points - The pointer to an array of float points[MAX_POINTS][2], where the result will be stored
 //        inputString - The string as received from the dot detector
 // Returns: The number of points added to the array
-int parsePoints( int* points, char* inputString, int* seqNumber ) {
+int parsePoints( float* points, char* inputString, int* seqNumber ) {
     int noPoints = 0;
     int inputLength = strlen( inputString );
 
@@ -122,7 +124,15 @@ int parsePoints( int* points, char* inputString, int* seqNumber ) {
     return noPoints;
 }
 
-int getDots(int sockfd, int* resultMatrix, char* dotsUpdated, int* seqNr) {
+// Get all received dots as an array of floats
+// Input: sockfd - The UDP socket to read the dots from
+//        resultMatrix - The array of floats where the parsed points should be stored
+//        dotsUpdated - A boolean variable to indicate if the result matrix has been updated
+//        seqNr - The sequence number of the current points. This may be lower then earlier
+//                received sequence number. It is up to the application to ignore out of order
+//                packages, should that be required.
+// Return: The number of dots in the current result matrix
+int getDots(int sockfd, float* resultMatrix, char* dotsUpdated, int* seqNr) {
     static char netBuf[SEND_BUF_SIZE];
     ssize_t receivedBytes = 0;
     static int dots;
