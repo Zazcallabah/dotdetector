@@ -7,7 +7,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <netinet/in.h>
+
+#include <fcntl.h>
+
 #include "profiling.h"
+#include "exposurecontrol.h"
 
 // Most functions in OpenCV uses BGR-A for some reason, so that's how these are defined
 #define RED 0, 0, 255, 0
@@ -315,14 +319,18 @@ void paintOverlayPoints(IplImage* grabbedImage, BoundingBox* DD_box) {
 
 // Runs the dot detector and sends detected dots to server on port TODO Implement headless. Needs more config options and/or possibly a config file first though
 int run(const char *serverAddress, const int serverPort, char headless) {
-    char show = ~0, flip = 0, vflip = 0, done = 0, warp = ~0; //"Boolean" values used in this loop
+    char calibrate = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = ~0; //"Boolean" values used in this loop
     char noiceReduction = 0; //Small counter, so char is still ok.
     int i, sockfd; //Generic counter
     int dp = 0, minDist = 29, param1 = 0, param2 = 5; // Configuration variables for circle detection 
     int minDotRadius = 1;
     int detected_dots; //Detected dot counter
     int returnValue = EXIT_SUCCESS;
-    Color min = {240, 100, 100, 0}; //Minimum color to detect
+    int fd;
+    int lastTestedExposure = 10;
+    int currentExposure = 10;
+    int maxExposure = 1250;
+    Color min = {100, 200, 100, 0}; //Minimum color to detect
     Color max = {255, 255, 255, 0}; //Maximum color to detect
     CvScalar colorWhite = cvScalar( WHITE ); //Color to draw detected dots on black and white surface
     BoundingBox DD_mask; //The box indicating what should and what should not be considered for dot search
@@ -361,9 +369,26 @@ int run(const char *serverAddress, const int serverPort, char headless) {
             break;
         }
     }
+    
     if (capture == NULL) {
         fprintf( stderr, "ERROR: capture is NULL \n" );
         return EXIT_FAILURE;
+    }
+    
+    /* Disable auto exposure for the device and set it low */
+    if ((fd = open("/dev/video1", O_RDWR | O_NONBLOCK, 0)) < 0) {
+        fprintf(stderr, "ERROR opening V4L2 interface \n"); 
+        //return EXIT_FAILURE;
+    }
+    
+    if((disableAutoExposure(fd)) == -1) {
+        fprintf(stderr, "ERROR: Cannot disable auto exposure \n" );
+        //return EXIT_FAILURE;
+    }
+    
+    if((setAbsoluteExposure(fd, currentExposure)) == -1) {
+        fprintf(stderr, "ERROR: Cannot set exposure \n");
+        //return EXIT_FAILURE;
     }
 
     // Create a window in which the captured images will be presented
@@ -379,9 +404,12 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     cvCreateTrackbar("Red",     "configwindow", &min.red,   255,    NULL);
     cvCreateTrackbar("Green",   "configwindow", &min.green, 255,    NULL);
     cvCreateTrackbar("Blue",    "configwindow", &min.blue,  255,    NULL);
-
+    
     //Create sliters for the contour based dot detection
     cvCreateTrackbar("Min area","configwindow", &minDotRadius,255,    NULL);
+
+    /* Slider for manual exposure setting */
+    cvCreateTrackbar("Exposure", "configwindow", &currentExposure, maxExposure, NULL);
 
     //Create the memory storage
     storage = cvCreateMemStorage(0);
@@ -577,6 +605,27 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                 clearSendQueue(queue);
                 PROFILING_POST_STAMP("Sending dots");
 
+                /* If calibrating, do the calibration */
+                if(calibrate) {
+                    int ret;
+                    ret = calibrateExposureLow(fd, detected_dots, lastTestedExposure, maxExposure, lastKnownFPS);
+                    if(ret != -1 && ret != -2 && ret != 9999) {
+                        lastTestedExposure = ret;
+                    } else if(ret == 9999) {
+                        calibrate = 0;
+                        fprintf(stderr, "ERROR: Maximum exposure reached. \n");
+                        lastTestedExposure = 10;
+                    } else if(ret == -1) {
+                        calibrate = 0;
+                        fprintf(stderr, "Calibration done. \n");
+                        lastTestedExposure = 10;
+                    } else if(ret == -2) {
+                        calibrate = 0;
+                        fprintf(stderr, "FPS fallen under 20. \n"); //This is the limit I'm trying to figure out.
+                        lastTestedExposure = 10;
+                    }
+                }
+
                 break; //End of GRAB_DOTS
 
             case SELECT_TRANSFORM:
@@ -614,10 +663,18 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         cvReleaseImage(&mask);
         cvReleaseImage(&coloredMask);
 
+        /* Update exposure if needed */
+        updateAbsoluteExposure(fd, currentExposure);
+
         //If ESC key pressed, Key=0x10001B under OpenCV 0.9.7(linux version),
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
+            case 'c':   calibrate = ~calibrate; 
+                        if(calibrate) {
+                            lastTestedExposure = 10;   
+                        }
+                        break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set
             case 't': state = SELECT_TRANSFORM; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_transform; break; //Starts selection of the transformation area. Returns to dot detection when done.
@@ -640,6 +697,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     if(warp) cvDestroyWindow( "warpwindow" ); //If now warp it is already destroyed
     destroySendQueue(queue);
     close(sockfd);
+    close(fd);
     return returnValue;
 }
 
