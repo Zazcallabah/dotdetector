@@ -19,6 +19,7 @@ about where you clicked, but the overlay in the top tells you what point to set 
 Keys
 -----
 * ESC - close the program
+* c - start automatic calibration of exposure time
 * t - recalibrate the transformation area (right click to skip point)
 * m - recalibrate the mask area (right click to skip point)
 * f - flip the image horizontally
