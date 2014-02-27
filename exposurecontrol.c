@@ -10,14 +10,16 @@
 #include "exposurecontrol.h"
 
 
+static int setAbsoluteExposure(int captureDevice, int absoluteValue);
+static int setControl(int captureDevice, int controlId, int controlValue);
 
-void updateAbsoluteExposure(int captureDevice, int newTime) {
+int updateAbsoluteExposure(int captureDevice, int newTime) {
 
     static int lastKnownTime = -1;
     
     if(lastKnownTime != newTime) {
-        setAbsoluteExposure(captureDevice, newTime);
         lastKnownTime = newTime;
+        return setAbsoluteExposure(captureDevice, newTime);
     }
 }
 
@@ -48,7 +50,7 @@ int disableAutoExposure(int captureDevice) {
     return 0;
 }
 
-int setAbsoluteExposure(int captureDevice, int absoluteValue) {
+static int setAbsoluteExposure(int captureDevice, int absoluteValue) {
 
     if((setControl(captureDevice, V4L2_CID_EXPOSURE_ABSOLUTE, absoluteValue)) == -1) {
         return -1;
@@ -56,7 +58,7 @@ int setAbsoluteExposure(int captureDevice, int absoluteValue) {
     return 0;
 }
 
-int setControl(int captureDevice, int controlId, int controlValue) {
+static int setControl(int captureDevice, int controlId, int controlValue) {
 
     struct v4l2_queryctrl queryctrl;
     struct v4l2_control control;

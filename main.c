@@ -305,6 +305,21 @@ void toggleWarpOutput(char state) {
     }
 }
 
+void toggleCalibrationMode(char* calibrate, int* currentExposure, int* lastTestedExposure) {
+    if( *calibrate ) {
+        printf("cancelled\n");
+        *calibrate = 0;
+        cvSetTrackbarPos("Exposure", "configwindow", *currentExposure);
+    }
+    else {
+        printf( "Starting calibration... " );
+        *calibrate = 1; 
+        if(calibrate) {
+            *lastTestedExposure = 10;   
+        }
+    }
+}
+
 // Paints the edges of the calibration area
 void paintOverlayPoints(IplImage* grabbedImage, BoundingBox* DD_box) {
     cvCircle(grabbedImage, DD_box->topLeft, 2, cvScalar(BLUE), -1, 8, 0); 
@@ -326,10 +341,10 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     int minDotRadius = 1;
     int detected_dots; //Detected dot counter
     int returnValue = EXIT_SUCCESS;
-    int fd;
+    int captureControl; //File descriptor for low-level camera controls
     int lastTestedExposure = 10;
     int currentExposure = 10;
-    int maxExposure = 1250;
+    int maxExposure = 1250; //Maximum exposure supported by the camera TODO Get this from the actual camera
     Color min = {100, 200, 100, 0}; //Minimum color to detect
     Color max = {255, 255, 255, 0}; //Maximum color to detect
     CvScalar colorWhite = cvScalar( WHITE ); //Color to draw detected dots on black and white surface
@@ -376,19 +391,18 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     }
     
     /* Disable auto exposure for the device and set it low */
-    if ((fd = open("/dev/video1", O_RDWR | O_NONBLOCK, 0)) < 0) {
+    if ((captureControl = open("/dev/video1", O_RDWR | O_NONBLOCK, 0)) < 0) { //TODO Read this in a more dynamic way. Get it from 'capture'?
         fprintf(stderr, "ERROR opening V4L2 interface \n"); 
         //return EXIT_FAILURE;
     }
     
-    if((disableAutoExposure(fd)) == -1) {
+    if((disableAutoExposure(captureControl)) == -1) {
         fprintf(stderr, "ERROR: Cannot disable auto exposure \n" );
         //return EXIT_FAILURE;
     }
     
-    if((setAbsoluteExposure(fd, currentExposure)) == -1) {
-        fprintf(stderr, "ERROR: Cannot set exposure \n");
-        //return EXIT_FAILURE;
+    if(updateAbsoluteExposure(captureControl, currentExposure) == -1) {
+        fprintf(stderr, "ERROR: Cannot set exposure\n");
     }
 
     // Create a window in which the captured images will be presented
@@ -608,8 +622,8 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                 /* If calibrating, do the calibration */
                 if(calibrate) {
                     int ret;
-                    ret = calibrateExposureLow(fd, detected_dots, lastTestedExposure, maxExposure, lastKnownFPS);
-                    if(ret != -1 && ret != -2 && ret != 9999) {
+                    ret = calibrateExposureLow(captureControl, detected_dots, lastTestedExposure, maxExposure, lastKnownFPS);
+                    if(ret != -1 && ret != -2 && ret != 9999) { //TODO Make more sensable return values
                         lastTestedExposure = ret;
                     } else if(ret == 9999) {
                         calibrate = 0;
@@ -617,8 +631,9 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                         lastTestedExposure = 10;
                     } else if(ret == -1) {
                         calibrate = 0;
-                        fprintf(stderr, "Calibration done. \n");
+                        printf( "Calibration done.\n");
                         lastTestedExposure = 10;
+                        cvSetTrackbarPos("Exposure", "configwindow", currentExposure);
                     } else if(ret == -2) {
                         calibrate = 0;
                         fprintf(stderr, "FPS fallen under 20. \n"); //This is the limit I'm trying to figure out.
@@ -664,17 +679,13 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         cvReleaseImage(&coloredMask);
 
         /* Update exposure if needed */
-        updateAbsoluteExposure(fd, currentExposure);
+        updateAbsoluteExposure(captureControl, currentExposure);
 
         //If ESC key pressed, Key=0x10001B under OpenCV 0.9.7(linux version),
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
-            case 'c':   calibrate = ~calibrate; 
-                        if(calibrate) {
-                            lastTestedExposure = 10;   
-                        }
-                        break; /* Toggles calibration mode */
+            case 'c': toggleCalibrationMode(&calibrate, &currentExposure, &lastTestedExposure); break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set
             case 't': state = SELECT_TRANSFORM; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_transform; break; //Starts selection of the transformation area. Returns to dot detection when done.
@@ -682,8 +693,10 @@ int run(const char *serverAddress, const int serverPort, char headless) {
             case 'v': vflip = ~vflip; break; //Toggles vertical flipping of the image
             case 'w': warp = ~warp; toggleWarpOutput(warp); break; //Toggles showing the warped image
             case 'n': noiceReduction = (noiceReduction + 1) % 3; break; //Cycles noice reduction algorithm
+            case 'q': //falling through here to quit
             case  27: done = 1; break; //ESC. Kills the whole thing (in a nice and controlled manner)
         }
+        fflush(stdout); //Make sure everything in the buffer is printed before we go on
 
 //PROFILING_POST_STAMP("Main loop");
     } //End of main while-loop
@@ -697,7 +710,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     if(warp) cvDestroyWindow( "warpwindow" ); //If now warp it is already destroyed
     destroySendQueue(queue);
     close(sockfd);
-    close(fd);
+    close(captureControl);
     return returnValue;
 }
 
