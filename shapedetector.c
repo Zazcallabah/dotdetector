@@ -1,3 +1,4 @@
+//#include "stdafx.h"
 #include <cv.h>
 #include <highgui.h>
 #include <stdlib.h>
@@ -81,6 +82,8 @@ struct Metric {
 } Metric;
 
 
+//*************************  AREA RATION CHECK  ***************************
+//*************************************************************************
 
 static char areaRatioCheck(CvSeq* c1, CvSeq* c2, double r_max){
 
@@ -93,9 +96,12 @@ static char areaRatioCheck(CvSeq* c1, CvSeq* c2, double r_max){
     if(res1 > res2) ratio = res1/res2;
     else ratio = res2/res1;
 
-    if(ratio <= r_max) return 1;
+    if(ratio <= r_max) {
+        return 1;
+    }
     return 0;
 }
+//-----------------------end areaRatioCheck---------------------------------
 
 
 //***********************  FUNCTION triangleInRectangleTest  *********************************
@@ -146,6 +152,7 @@ void findBox(CvPoint* s_list){
     s_list[1] = br;
     s_list[2] = tl;
     s_list[3] = tr;
+    //--------------------------- end findBox ---------------------------------
 
 }
 
@@ -331,13 +338,13 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
             }
         }
 
-        //---------------------------------------------------------------------------
-
 
         //obtain the next contour
         contour = contour->h_next; 
     } // End of while(1)
 
+
+    //****************************  FIND CALIBRATION SHAPES  **********************************
 
     //****************************  FIND CALIBRATION SHAPES  **********************************
 
@@ -518,6 +525,7 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
 
         //---------------------------------------------------------------------------
 
+        //---------------------------------------------------------------------------
 
         // Awesome shapeProcessing function calls
         for(i=0; i<numberOfIntervals; i++){
