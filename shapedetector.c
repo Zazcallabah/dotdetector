@@ -346,8 +346,6 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
 
     //****************************  FIND CALIBRATION SHAPES  **********************************
 
-    //****************************  FIND CALIBRATION SHAPES  **********************************
-
     for(i=0; i<r_counter; i++) {
 
         for(j=0; j<t_counter; j++) {
@@ -363,6 +361,9 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
                     m.keep=1;
                     drawRect(rect, img);
 
+                    if(s_counter > 0) {
+                        printf("Found %d shapes in layer %d\n", s_counter, j);
+                    }
                     if(s_counter >= 4) {
 
                         //Find which shape is in which corner using pythagoras 
@@ -409,7 +410,9 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
     //First we check if any layers are below the minimum metric (5 currently). Any layer below
     //minimum metric is changed
     for(i=0; i<numberOfIntervals; i++){
-        if(metric[i].keep) printf("Layer %d locked.\n", i);
+        if(metric[i].keep) {
+            //printf("Layer %d locked.\n", i);
+        }
         if(metric[i].value <= 5 && !metric[i].keep){//Check if this layer is below minimum metric
 
             r=rand() % 256;
@@ -421,7 +424,7 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
                     change = 1;
                 }
             }
-            printf("Threshold %d set to %d\n", i, r);
+            //printf("Threshold %d set to %d\n", i, r);
             threshold[i] = r;//Set new threshold for this layer
             findMin = 0;
         }
@@ -437,7 +440,7 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
                 min_i = i;
             }
         }
-        printf("Min = %d\n", min);
+        //printf("Min = %d\n", min);
 
         r=rand() % 256;
         //Randomize a threshold and make sure no other layer is using that threshold
@@ -447,7 +450,7 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
                 j=-1;
             }
         }
-        printf("Threshold %d set to %d\n", min_i, r);
+        //printf("Threshold %d set to %d\n", min_i, r);
         threshold[min_i] = r;//Set new threshold for this layer
     }
 
@@ -530,7 +533,9 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
         // Awesome shapeProcessing function calls
         for(i=0; i<numberOfIntervals; i++){
             metric[i] = shapeProcessing(img, imgGrayScale, threshold[i]);
-            if(metric[i].value == -1) run = 0;
+            if(metric[i].value == -1) {
+                run = 0;
+            }
             printf("Threshold %d: %d, metric: %d\n", i, threshold[i], metric[i].value);
         }
 
