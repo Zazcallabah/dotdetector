@@ -1,5 +1,5 @@
 all:
-	gcc exposurecontrol.c main.c -O3 -o dotdetector `pkg-config --libs --cflags opencv`
+	gcc exposurecontrol.c main.c shapedetector.c -O3 -o dotdetector `pkg-config --libs --cflags opencv`
 	
 
 debug:
