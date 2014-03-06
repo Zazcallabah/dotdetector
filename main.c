@@ -5,11 +5,12 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netdb.h>
 #include <netinet/in.h>
-
+#include "DD_shapes.h"
 #include <fcntl.h>
-
+#include "shapedetector.h"
 #include "profiling.h"
 #include "exposurecontrol.h"
 
@@ -63,13 +64,6 @@ struct color {
     int alpha;
 };
 typedef struct color Color;
-
-typedef struct BoundingBox {
-    CvPoint topLeft;
-    CvPoint topRight;
-    CvPoint bottomRight;
-    CvPoint bottomLeft;
-} BoundingBox;
 
 typedef struct ClickParams {
     int currentPoint;
@@ -330,6 +324,13 @@ void paintOverlayPoints(IplImage* grabbedImage, BoundingBox* DD_box) {
     cvLine(grabbedImage, DD_box->bottomRight, DD_box->bottomLeft, cvScalar(GREEN), 1, 8, 0);
     cvCircle(grabbedImage, DD_box->bottomRight, 2, cvScalar(BLUE), -1, 8, 0);
     cvLine(grabbedImage, DD_box->bottomLeft, DD_box->topLeft, cvScalar(GREEN), 1, 8, 0);
+}
+
+//Magic
+void makeCalibrate(BoundingBox* b, BoundingBox* to, CvMat* t, CvCapture* c, int i){
+
+	shapeDetector(b, c, i);
+	calculateTransformationMatrix(b, to, t);
 }
 
 // Runs the dot detector and sends detected dots to server on port TODO Implement headless. Needs more config options and/or possibly a config file first though
@@ -685,6 +686,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
+	    case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, 10);  break;
             case 'c': toggleCalibrationMode(&calibrate, &currentExposure, &lastTestedExposure); break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set
