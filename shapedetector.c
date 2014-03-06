@@ -476,8 +476,6 @@ char run=1;
 char showWindow [100];
 
 struct Metric metric[100];
-IplImage* imgArray [10];
-IplImage* tempImage;
 IplImage* imgGrayScale;
 IplImage* imgSmooth;
 IplImage* img;
@@ -498,14 +496,6 @@ for(i=0; i<100; i++)
 
 img = cvQueryFrame(capture);
 
-//imgSmooth = cvCreateImage(cvGetSize(img), 8, 1);
-
-for(i=0; i<numberOfIntervals; i++){
-
-	imgArray[i] = cvCreateImage(cvGetSize(img), 8, 1);
-}
-
-tempImage = cvCreateImage(cvGetSize(img), 8, 1); 
 imgGrayScale = cvCreateImage(cvGetSize(img), 8, 1);
 
 if(numberOfWindows == 1)
