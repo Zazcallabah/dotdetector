@@ -82,6 +82,10 @@ struct Metric {
 
 
 
+//*************************  AREA RATION CHECK  ***************************
+//*************************************************************************
+
+
 char areaRatioCheck(CvSeq* c1, CvSeq* c2, double r_max){
 
 double res1, res2;
@@ -97,10 +101,10 @@ double ratio;
 	return 0;
 }	
 
+//-----------------------end areaRatioCheck---------------------------------
 
-//***********************  FUNCTION triangleInRectangleTest  *********************************
-//**  This function returns 1 iff all points in Triangle t is inside CvSeq (contour) c. ***
-//********************************************************************************************
+//****************  TRIANGLE IN RECTANGLE CHECK  ***************************
+//**************************************************************************
 
 char triangleInRectangleTest(CvSeq* c, struct Triangle* t){
 	if( cvPointPolygonTest( c, cvPointTo32f( t->pt[0]), 0) > 0){
@@ -112,7 +116,12 @@ char triangleInRectangleTest(CvSeq* c, struct Triangle* t){
 	}else
 		return 0;
 }
-//---------------------------------------------------------------------------------------------
+//-------------------- end triangleInRectangleCheck ------------------------
+
+
+
+//******************************  FIND BOX  ********************************
+//**************************************************************************
 
 void findBox(CvPoint* s_list){
 int i, tempx, tempy, min=32000, value;
@@ -148,6 +157,8 @@ CvPoint tl, bl, tr, br;
 	s_list[3] = tr;
 
 }
+//--------------------------- end findBox ---------------------------------
+
 
 //*************************  SHAPE PROCESSING  ****************************
 //*************************************************************************
@@ -324,7 +335,6 @@ while(contour){
 
 		if(draw){
 			for(j=0; i<total-1; i++){
-				//polygon2[i] = polygon[i+1];
 				cvLine(img, polygon[i], polygon[i+1], cvScalar(255,20*i,255,0),1,8,0);
 			}
 			cvLine(img, polygon[i], polygon[0], cvScalar(255,20*i,255,0),4,8,0);
@@ -449,8 +459,8 @@ char findMin = 1;
 
 
 
-//***************************  MAIN  ***********************************
-//**********************************************************************
+//***************************  SHAPE DETECTION  ***********************************
+//*********************************************************************************
 
 int shapeDetector(BoundingBox* result, CvCapture* c, int nrI){
 
@@ -466,8 +476,6 @@ char run=1;
 char showWindow [100];
 
 struct Metric metric[100];
-IplImage* imgArray [10];
-IplImage* tempImage;
 IplImage* imgGrayScale;
 IplImage* imgSmooth;
 IplImage* img;
@@ -485,18 +493,9 @@ for(i=0; i<100; i++)
 	showWindow[i] = 0;
 
 //*********************  SET UP IMAGES AND DISPLAY WINDOWS  ***********************
-//*********************************************************************************
 
 img = cvQueryFrame(capture);
 
-//imgSmooth = cvCreateImage(cvGetSize(img), 8, 1);
-
-for(i=0; i<numberOfIntervals; i++){
-
-	imgArray[i] = cvCreateImage(cvGetSize(img), 8, 1);
-}
-
-tempImage = cvCreateImage(cvGetSize(img), 8, 1); 
 imgGrayScale = cvCreateImage(cvGetSize(img), 8, 1);
 
 if(numberOfWindows == 1)
@@ -530,11 +529,6 @@ while(run){ //Main loop
 	//*********************  IMAGE PRE-PROCESSING  ****************************
 
 	img = cvQueryFrame(capture);
-	//img = cvLoadImage("lols.jpg", CV_LOAD_IMAGE_COLOR);
-	//cvFlip(img, img, 0);	
-
-	//smooth the original image using Gaussian kernel to remove noise
-	//cvSmooth(img, img, CV_GAUSSIAN,5,5);
 
 	//converting the original image into grayscale
 	cvCvtColor(img,imgGrayScale,CV_BGR2GRAY);
