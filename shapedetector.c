@@ -361,9 +361,9 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
                     m.keep=1;
                     drawRect(rect, img);
 
-                    if(s_counter > 0) {
-                        printf("Found %d shapes in layer %d\n", s_counter, j);
-                    }
+                    //if(s_counter > 0) {
+                    //    printf("Found %d shapes in layer %d\n", s_counter, j);
+                    //}
                     if(s_counter >= 4) {
 
                         //Find which shape is in which corner using pythagoras 
@@ -474,6 +474,7 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     char dynamicThresholding=1;
     char run=1;
     char showWindow [100];
+    char got_result = 0; //Used to know if we had great success of just got canceled
 
     struct Metric metric[100];
     IplImage* imgGrayScale;
@@ -528,15 +529,14 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
 
         //---------------------------------------------------------------------------
 
-        //---------------------------------------------------------------------------
-
         // Awesome shapeProcessing function calls
         for(i=0; i<numberOfIntervals; i++){
             metric[i] = shapeProcessing(img, imgGrayScale, threshold[i]);
             if(metric[i].value == -1) {
+                got_result = 1;
                 run = 0;
             }
-            printf("Threshold %d: %d, metric: %d\n", i, threshold[i], metric[i].value);
+            //printf("Threshold %d: %d, metric: %d\n", i, threshold[i], metric[i].value);
         }
 
         // Adjust thresholds 
@@ -581,6 +581,6 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     cvReleaseMemStorage(&storage);
     cvReleaseImage(&imgGrayScale);
     //cvReleaseImage(&img);
-    printf("Made nice exit\n");
-    return 1;
+    
+    return got_result;
 }
