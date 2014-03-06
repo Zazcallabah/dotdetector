@@ -16,7 +16,7 @@ static int setControl(int captureDevice, int controlId, int controlValue);
 int updateAbsoluteExposure(int captureDevice, int newTime) {
 
     static int lastKnownTime = -1;
-    
+
     if(lastKnownTime != newTime) {
         lastKnownTime = newTime;
         return setAbsoluteExposure(captureDevice, newTime);
@@ -67,30 +67,30 @@ static int setControl(int captureDevice, int controlId, int controlValue) {
     queryctrl.id = controlId;
 
     if (-1 == ioctl (captureDevice, VIDIOC_QUERYCTRL, &queryctrl)) {
-	    if (errno != EINVAL) {
-	    	fprintf (stderr, "OPTION is not supported.\n");
-	    	return -1;
-	    	//exit (EXIT_FAILURE);
-	    } else {
-	    	fprintf (stderr, "OPTION  is not supported.\n");
-	    	return -1;
-	    }
+        if (errno != EINVAL) {
+            fprintf (stderr, "OPTION is not supported.\n");
+            return -1;
+            //exit (EXIT_FAILURE);
+        } else {
+            fprintf (stderr, "OPTION  is not supported.\n");
+            return -1;
+        }
     } else if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) {
-    	fprintf (stderr, "OPTION is not supported.\n");
-    	return -1;
+        fprintf (stderr, "OPTION is not supported.\n");
+        return -1;
     } else {
-    	memset (&control, 0, sizeof (control)); //skriv nollor till hela control för att kunna sätta egna värden att skriva.
-    	control.id = controlId;
-    	//control.value = queryctrl.default_value;
+        memset (&control, 0, sizeof (control)); //skriv nollor till hela control för att kunna sätta egna värden att skriva.
+        control.id = controlId;
+        //control.value = queryctrl.default_value;
         control.value = controlValue;
 
-    	if (-1 == ioctl (captureDevice, VIDIOC_S_CTRL, &control)) {
-    		fprintf (stderr, "VIDIOC_S_CTRL\n");
-    		//exit (EXIT_FAILURE);
-    	    return -1;
-    	}
+        if (-1 == ioctl (captureDevice, VIDIOC_S_CTRL, &control)) {
+            fprintf (stderr, "VIDIOC_S_CTRL\n");
+            //exit (EXIT_FAILURE);
+            return -1;
+        }
     }
-    
+
     return 0;
 
 }

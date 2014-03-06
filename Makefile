@@ -3,7 +3,7 @@ all:
 	
 
 debug:
-	gcc exposurecontrol.c main.c -o dotdetector -g -DPROFILING `pkg-config --libs --cflags opencv`
+	gcc exposurecontrol.c main.c shapedetector.c -o dotdetector -g -DPROFILING `pkg-config --libs --cflags opencv`
 	
 clean:
 	rm -f dotdetector

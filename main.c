@@ -274,7 +274,7 @@ void calibrateClick(int event, int x, int y, int flags, void* param) {
             }
         }
         else if(event == CV_EVENT_RBUTTONDOWN) { //Allow skipping already well calibrated points
-                printf("Keeping old calibration of %s point\n", pointTranslationTable[*currentCalibrationPoint]);
+            printf("Keeping old calibration of %s point\n", pointTranslationTable[*currentCalibrationPoint]);
             ++(*currentCalibrationPoint);
         }
         if(*currentCalibrationPoint > BOTTOM_LEFT) {
@@ -326,11 +326,14 @@ void paintOverlayPoints(IplImage* grabbedImage, BoundingBox* DD_box) {
     cvLine(grabbedImage, DD_box->bottomLeft, DD_box->topLeft, cvScalar(GREEN), 1, 8, 0);
 }
 
-//Magic
-void makeCalibrate(BoundingBox* b, BoundingBox* to, CvMat* t, CvCapture* c, int i){
+// Activates the shape detector to automagically detect the corners of the screen.
+// It look for a rectangular shape with a triangle inside it for each corner.
+// Once it finds four (or more) it calculates a new transformateion matrix and returns
+void makeCalibrate(BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, int i){
 
-	shapeDetector(b, c, i);
-	calculateTransformationMatrix(b, to, t);
+    if( shapeDetector(from, c, i) ) {
+        calculateTransformationMatrix(from, to, t);
+    }
 }
 
 // Runs the dot detector and sends detected dots to server on port TODO Implement headless. Needs more config options and/or possibly a config file first though
@@ -377,31 +380,31 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     }
     queue = initSendQueue();
 
-//  Capture from the highest connected device number. This is a really
-//  bad solution, but it'll have to do for now. TODO Make this better
+    //  Capture from the highest connected device number. This is a really
+    //  bad solution, but it'll have to do for now. TODO Make this better
     for( i = 20; i >= 0; --i ) {
         capture = cvCaptureFromCAM(i);    
         if (capture != NULL) {
             break;
         }
     }
-    
+
     if (capture == NULL) {
         fprintf( stderr, "ERROR: capture is NULL \n" );
         return EXIT_FAILURE;
     }
-    
+
     /* Disable auto exposure for the device and set it low */
     if ((captureControl = open("/dev/video1", O_RDWR | O_NONBLOCK, 0)) < 0) { //TODO Read this in a more dynamic way. Get it from 'capture'?
         fprintf(stderr, "ERROR opening V4L2 interface \n"); 
         //return EXIT_FAILURE;
     }
-    
+
     if((disableAutoExposure(captureControl)) == -1) {
         fprintf(stderr, "ERROR: Cannot disable auto exposure \n" );
         //return EXIT_FAILURE;
     }
-    
+
     if(updateAbsoluteExposure(captureControl, currentExposure) == -1) {
         fprintf(stderr, "ERROR: Cannot set exposure\n");
     }
@@ -419,7 +422,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     cvCreateTrackbar("Red",     "configwindow", &min.red,   255,    NULL);
     cvCreateTrackbar("Green",   "configwindow", &min.green, 255,    NULL);
     cvCreateTrackbar("Blue",    "configwindow", &min.blue,  255,    NULL);
-    
+
     //Create sliters for the contour based dot detection
     cvCreateTrackbar("Min area","configwindow", &minDotRadius,255,    NULL);
 
@@ -471,29 +474,29 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     DD_transform_to.topLeft.y = 0;
 
     DD_transform_to.topRight.x = grabbedImage->width-1;
-//    DD_transform_to.topRight.x = 1000;
+    //    DD_transform_to.topRight.x = 1000;
     DD_transform_to.topRight.y = 0;
 
     DD_transform_to.bottomLeft.x = 0;
     DD_transform_to.bottomLeft.y = grabbedImage->height-1;
- //   DD_transform_to.bottomLeft.y = 1000;
+    //   DD_transform_to.bottomLeft.y = 1000;
 
     DD_transform_to.bottomRight.x = grabbedImage->width-1;
     DD_transform_to.bottomRight.y = grabbedImage->height-1;
- //   DD_transform_to.bottomRight.x = 1000;
- //   DD_transform_to.bottomRight.y = 1000;
-    
+    //   DD_transform_to.bottomRight.x = 1000;
+    //   DD_transform_to.bottomRight.y = 1000;
+
     calculateTransformationMatrix(&DD_transform, &DD_transform_to, transMat);
 
     // Set callback function for mouse clicks
     cvSetMouseCallback("imagewindow", calibrateClick, (void*) &clickParams );
 
     gettimeofday(&oldTime, NULL);
-    
+
     // Main loop. Grabbs an image from cam, detects dots, sends dots,and prints dots to images and shows to user
     while (!done) {
 
-//PROFILING_PRO_STAMP(); //Uncomment this and the one in the end of the while-loop, and comment all other PROFILING_* to profile main-loop
+        //PROFILING_PRO_STAMP(); //Uncomment this and the one in the end of the while-loop, and comment all other PROFILING_* to profile main-loop
 
         // ------ Common actions
         cvClearMemStorage(storage);
@@ -560,13 +563,13 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                 PROFILING_PRO_STAMP();
 
                 // Clear old data from seq
-//                cvClearSeq(seq);
+                //                cvClearSeq(seq);
                 seq = 0;
 
                 // Find the dots
                 cvFindContours( imgThreshold, storage, &seq, sizeof(CvContour), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint(0,0) );
                 cvZero(imgThreshold); //cvFindContours destroys the original image, so we wipe it here and then repaints the detected dots later
-                
+
                 PROFILING_POST_STAMP("Dot detection");
 
 
@@ -586,7 +589,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
 
                     // Note that we have found another dot
                     ++detected_dots;
-                    
+
                     // Transform the detected dot according to transformation matrix.
                     float absCenter[] = { rect.x + relCenterX, rect.y + relCenterY };
                     pointRealMat->data.fl = absCenter;
@@ -599,7 +602,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                         drawCircle( absCenter[0], absCenter[1], (relCenterX + relCenterY) / 2, grabbedImage);
                         if(warp) drawCircle( pointTransMat->data.fl[0], pointTransMat->data.fl[1], (relCenterX + relCenterY) / 2, coloredMask);
                     }
-                    
+
                     // Add detected dot to to send queue
                     addPointToSendQueue( pointTransMat->data.fl, queue ); 
                 }
@@ -686,7 +689,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
-	    case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, 10);  break;
+            case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, 10);  break;
             case 'c': toggleCalibrationMode(&calibrate, &currentExposure, &lastTestedExposure); break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set
@@ -700,7 +703,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         }
         fflush(stdout); //Make sure everything in the buffer is printed before we go on
 
-//PROFILING_POST_STAMP("Main loop");
+        //PROFILING_POST_STAMP("Main loop");
     } //End of main while-loop
 
     // Release the capture device and do some housekeeping
