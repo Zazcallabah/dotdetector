@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <locale.h>
 #include "DD_shapes.h"
 #include <fcntl.h>
 #include "shapedetector.h"
@@ -740,6 +741,11 @@ int main(int argc, char **argv) {
     }
     printf("Server address: %s\n", serverAddress);
     printf("Server port: %d\n", (int)serverPort);
+
+    // Force numberic locale to C
+    if(setlocale( LC_NUMERIC, "C") == NULL) {
+        fprintf( stderr, "Failed to set locale to C\n");
+    }
 
     ret = run(serverAddress, serverPort, 1);
     free(serverAddress);
