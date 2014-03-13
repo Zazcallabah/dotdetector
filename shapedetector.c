@@ -470,6 +470,7 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     int w_counter=0;
     int threshold[100];
     int i,j;
+	int frameCounter=0;
 
     char dynamicThresholding=1;
     char run=1;
@@ -521,7 +522,7 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     while(run){ //Main loop
 
         //*********************  IMAGE PRE-PROCESSING  ****************************
-
+	frameCounter++;
         img = cvQueryFrame(capture);
 
         //converting the original image into grayscale
@@ -581,6 +582,6 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     cvReleaseMemStorage(&storage);
     cvReleaseImage(&imgGrayScale);
     //cvReleaseImage(&img);
-    
+    printf("Number of frames: %d\n", frameCounter);
     return got_result;
 }
