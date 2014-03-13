@@ -157,6 +157,12 @@ void sendQueue(int sockfd, SendQueue *q)
     static char sentEmpty = 0;
     int ret, len = 0, seqLen = 0;
     char buf[SEND_BUF_SIZE];
+
+    // Force numberic locale to C, else the protocol format can break
+    if(setlocale( LC_NUMERIC, "C") == NULL) {
+        fprintf( stderr, "Failed to set locale to C\n");
+    }
+
     buf[0] = '\0';
 
     // Add sequence number to package
@@ -741,11 +747,6 @@ int main(int argc, char **argv) {
     }
     printf("Server address: %s\n", serverAddress);
     printf("Server port: %d\n", (int)serverPort);
-
-    // Force numberic locale to C
-    if(setlocale( LC_NUMERIC, "C") == NULL) {
-        fprintf( stderr, "Failed to set locale to C\n");
-    }
 
     ret = run(serverAddress, serverPort, 1);
     free(serverAddress);
