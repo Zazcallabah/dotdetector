@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <locale.h>
 #include "DD_shapes.h"
 #include <fcntl.h>
 #include "shapedetector.h"
@@ -156,6 +157,12 @@ void sendQueue(int sockfd, SendQueue *q)
     static char sentEmpty = 0;
     int ret, len = 0, seqLen = 0;
     char buf[SEND_BUF_SIZE];
+
+    // Force numberic locale to C, else the protocol format can break
+    if(setlocale( LC_NUMERIC, "C") == NULL) {
+        fprintf( stderr, "Failed to set locale to C\n");
+    }
+
     buf[0] = '\0';
 
     // Add sequence number to package
