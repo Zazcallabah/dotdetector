@@ -696,7 +696,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
-            case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, 10);  break;
+            case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, 20); break;
             case 'c': toggleCalibrationMode(&calibrate, &currentExposure, &lastTestedExposure); break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set
