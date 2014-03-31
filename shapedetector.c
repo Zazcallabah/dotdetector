@@ -65,6 +65,8 @@ struct Triangle {
 
 struct Rectangle {
 
+    int x;
+    int y;
     CvPoint pt[4];
     CvSeq* c;
 } Rectangle;
@@ -120,6 +122,115 @@ static char triangleInRectangleTest(CvSeq* c, struct Triangle* t) {
 }
 //---------------------------------------------------------------------------------------------
 
+
+
+int findCorner(CvPoint* c_list, int corner){
+
+    int i, min=32000, value, ret;
+    
+if(corner == 0){    
+    //find top left
+    for(i=0; i<4; i++){
+        value = sqrt( pow(c_list[i].x, 2) + pow(c_list[i].y, 2)); 
+        if(value < min){    
+            min = value; 
+            ret = i;
+        }
+    }
+}
+    
+if(corner == 1){
+    //find top right
+    for(i=0; i<4; i++){
+        value = sqrt( pow(640-c_list[i].x, 2) + pow(c_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            ret = i;
+        }
+    }    
+}
+
+if(corner == 2){    
+    //find bottom right
+    for(i=0; i<4; i++){
+        value = sqrt( pow(640-c_list[i].x, 2) + pow(480-c_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            ret = i;
+        }
+    }
+}
+    
+if(corner == 3){
+    //find bottom left
+    for(i=0; i<4; i++){
+        value = sqrt( pow(c_list[i].x, 2) + pow(480 - c_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            ret = i;
+        }
+    }
+}    
+
+return ret;
+
+}
+
+
+    //--------------------------- findBox_r ---------------------------------
+
+void findBox_r(struct Rectangle* s_list, CvPoint* ret){
+    int i, tempx, tempy, min=32000, value;
+    CvPoint tl, bl, tr, br;
+
+    //find bottom left
+    for(i=0; i<4; i++){
+        value = sqrt( pow(s_list[i].x, 2) + pow(480 - s_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            tl=s_list[i].pt[ findCorner(&s_list[i].pt[0], 3) ];
+        }
+    }
+    min = 32000;
+    
+    //find top left
+    for(i=0; i<4; i++){
+        value = sqrt( pow(s_list[i].x, 2) + pow(s_list[i].y, 2)); 
+        if(value < min){    
+            min = value; 
+            bl= s_list[i].pt[ findCorner(&s_list[i].pt[0], 0) ]; 
+        }
+    }
+    min = 32000;
+    
+    //find bottom right
+    for(i=0; i<4; i++){
+        value = sqrt( pow(640-s_list[i].x, 2) + pow(480-s_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            tr=s_list[i].pt[  findCorner(&s_list[i].pt[0], 2) ]; 
+        }
+    }
+    min = 32000;
+    
+    //find top right
+    for(i=0; i<4; i++){
+        value = sqrt( pow(640-s_list[i].x, 2) + pow(s_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            br = s_list[i].pt[  findCorner(&s_list[i].pt[0], 1) ]; 
+        }
+    }
+
+    ret[0] = bl;
+    ret[1] = br;
+    ret[2] = tl;
+    ret[3] = tr;
+    //--------------------------- end findBox ---------------------------------
+
+}
+
+
 void findBox(CvPoint* s_list){
     int i, tempx, tempy, min=32000, value;
     CvPoint tl, bl, tr, br;
@@ -164,7 +275,7 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
     int r_counter=0;
     int p_counter=0;
     int s_counter=0;
-    int i,j;
+    int i,j,k;
     double area;
 
     CvSeq* contour;
@@ -172,7 +283,9 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
     CvMemStorage *storage = cvCreateMemStorage(0); //storage area for all contours
     IplImage* tempImage;
     struct Metric m;
-
+    
+    
+    struct Rectangle  rectList[4];
     CvPoint s_list[4];
     CvPoint polygon[20];
     CvPoint polygon2[20];
@@ -355,8 +468,18 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
                 if(areaRatioCheck(r_list[i].c, t_list[j].c, 20)) {
 
                     CvRect rect = ((CvContour *) r_list[i].c)->rect;
-                    s_list[s_counter].x = rect.x + rect.width/2;
-                    s_list[s_counter].y = rect.y + rect.height/2;
+                    
+                    //Send center coords for detected calibration shapes
+                    //s_list[s_counter].x = rect.x + rect.width/2;
+                    //s_list[s_counter].y = rect.y + rect.height/2;
+                    
+                    //Send corners
+                    for(k=0; k<4; k++){
+                        rectList[s_counter].pt[k] = r_list[i].pt[k];
+                        rectList[s_counter].x = rect.x + rect.width/2;
+                        rectList[s_counter].y = rect.y + rect.height/2;  
+                    }
+                    
                     s_counter++;
                     m.keep=1;
                     drawRect(rect, img);
@@ -367,7 +490,9 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
                     if(s_counter >= 4) {
 
                         //Find which shape is in which corner using pythagoras 
-                        findBox(&s_list[0]);
+                        //findBox(&s_list[0]);
+
+                        findBox_r(&rectList[0], &s_list[0]);
 
                         box->topLeft = s_list[0];
                         box->topRight = s_list[1];
