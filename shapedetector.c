@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include "DD_shapes.h"
 
-char draw = 1;
+char draw = 0;
 char drawNoise = 0;
 BoundingBox* box;
 //********************  FUNCTION drawRect  *************************
@@ -123,59 +123,28 @@ static char triangleInRectangleTest(CvSeq* c, struct Triangle* t) {
 //---------------------------------------------------------------------------------------------
 
 
+// ******************************** FIND CORNER ************************************
 
 int findCorner(CvPoint* c_list, int corner){
 
     int i, min=32000, value, ret;
     
-if(corner == 0){    
-    //find top left
     for(i=0; i<4; i++){
-        value = sqrt( pow(c_list[i].x, 2) + pow(c_list[i].y, 2)); 
+        if(corner == 0) value = sqrt( pow(c_list[i].x, 2) + pow(c_list[i].y, 2));           //find top left
+        if(corner == 1) value = sqrt( pow(640-c_list[i].x, 2) + pow(c_list[i].y, 2));       //find top right
+        if(corner == 2) value = sqrt( pow(640-c_list[i].x, 2) + pow(480-c_list[i].y, 2));   //find bottom right
+        if(corner == 3) value = sqrt( pow(c_list[i].x, 2) + pow(480 - c_list[i].y, 2));     //find bottom left
+        
         if(value < min){    
             min = value; 
             ret = i;
         }
-    }
-}
-    
-if(corner == 1){
-    //find top right
-    for(i=0; i<4; i++){
-        value = sqrt( pow(640-c_list[i].x, 2) + pow(c_list[i].y, 2)); 
-        if(value < min){ 
-            min = value; 
-            ret = i;
-        }
     }    
-}
-
-if(corner == 2){    
-    //find bottom right
-    for(i=0; i<4; i++){
-        value = sqrt( pow(640-c_list[i].x, 2) + pow(480-c_list[i].y, 2)); 
-        if(value < min){ 
-            min = value; 
-            ret = i;
-        }
-    }
-}
     
-if(corner == 3){
-    //find bottom left
-    for(i=0; i<4; i++){
-        value = sqrt( pow(c_list[i].x, 2) + pow(480 - c_list[i].y, 2)); 
-        if(value < min){ 
-            min = value; 
-            ret = i;
-        }
-    }
-}    
-
 return ret;
 
 }
-
+    //------------------------ end findCorner -------------------------------
 
     //--------------------------- findBox_r ---------------------------------
 
@@ -183,15 +152,6 @@ void findBox_r(struct Rectangle* s_list, CvPoint* ret){
     int i, tempx, tempy, min=32000, value;
     CvPoint tl, bl, tr, br;
 
-    //find bottom left
-    for(i=0; i<4; i++){
-        value = sqrt( pow(s_list[i].x, 2) + pow(480 - s_list[i].y, 2)); 
-        if(value < min){ 
-            min = value; 
-            tl=s_list[i].pt[ findCorner(&s_list[i].pt[0], 3) ];
-        }
-    }
-    min = 32000;
     
     //find top left
     for(i=0; i<4; i++){
@@ -199,16 +159,6 @@ void findBox_r(struct Rectangle* s_list, CvPoint* ret){
         if(value < min){    
             min = value; 
             bl= s_list[i].pt[ findCorner(&s_list[i].pt[0], 0) ]; 
-        }
-    }
-    min = 32000;
-    
-    //find bottom right
-    for(i=0; i<4; i++){
-        value = sqrt( pow(640-s_list[i].x, 2) + pow(480-s_list[i].y, 2)); 
-        if(value < min){ 
-            min = value; 
-            tr=s_list[i].pt[  findCorner(&s_list[i].pt[0], 2) ]; 
         }
     }
     min = 32000;
@@ -221,16 +171,36 @@ void findBox_r(struct Rectangle* s_list, CvPoint* ret){
             br = s_list[i].pt[  findCorner(&s_list[i].pt[0], 1) ]; 
         }
     }
+    min = 32000;    
+
+    //find bottom right
+    for(i=0; i<4; i++){
+        value = sqrt( pow(640-s_list[i].x, 2) + pow(480-s_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            tr=s_list[i].pt[  findCorner(&s_list[i].pt[0], 2) ]; 
+        }
+    }
+    min = 32000;
+
+    //find bottom left
+    for(i=0; i<4; i++){
+        value = sqrt( pow(s_list[i].x, 2) + pow(480 - s_list[i].y, 2)); 
+        if(value < min){ 
+            min = value; 
+            tl=s_list[i].pt[ findCorner(&s_list[i].pt[0], 3) ];
+        }
+    }
 
     ret[0] = bl;
     ret[1] = br;
     ret[2] = tl;
     ret[3] = tr;
-    //--------------------------- end findBox ---------------------------------
+    //--------------------------- end findBox_r ---------------------------------
 
 }
 
-
+    //--------------------------- findBox ---------------------------------
 void findBox(CvPoint* s_list){
     int i, tempx, tempy, min=32000, value;
     CvPoint tl, bl, tr, br;
