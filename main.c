@@ -336,10 +336,18 @@ void paintOverlayPoints(IplImage* grabbedImage, BoundingBox* DD_box) {
 // Activates the shape detector to automagically detect the corners of the screen.
 // It look for a rectangular shape with a triangle inside it for each corner.
 // Once it finds four (or more) it calculates a new transformateion matrix and returns
-void makeCalibrate(BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, int i){
+void makeCalibrate(BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, int captureControl, int i){
 
+    if((enableAutoExposure(captureControl)) == -1) {
+        fprintf(stderr, "ERROR: Cannot enable auto exposure \n" );
+        //return EXIT_FAILURE;
+    }
     if( shapeDetector(from, c, i) ) {
         calculateTransformationMatrix(from, to, t);
+    }
+    if((disableAutoExposure(captureControl)) == -1) {
+        fprintf(stderr, "ERROR: Cannot disable auto exposure \n" );
+        //return EXIT_FAILURE;
     }
 }
 
@@ -696,7 +704,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
-            case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, 20); break;
+            case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, captureControl, 20); updateAbsoluteExposure(captureControl, currentExposure+1); break;
             case 'c': toggleCalibrationMode(&calibrate, &currentExposure, &lastTestedExposure); break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set

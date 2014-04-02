@@ -42,6 +42,14 @@ int calibrateExposureLow(int captureDevice, int detectedDots, int lastTestedExpo
     }
 }
 
+int enableAutoExposure(int captureDevice) {
+
+    if(setControl(captureDevice, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_AUTO) == -1) {
+        return -1;
+    }
+    return 0;
+}
+
 int disableAutoExposure(int captureDevice) {
 
     if(setControl(captureDevice, V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL) == -1) {
