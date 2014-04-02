@@ -1,4 +1,5 @@
-//#include "stdafx.h"
+//TODO: refactor Pattern and Rectangle structs. Ugly as fuck
+
 #include <cv.h>
 #include <highgui.h>
 #include <stdlib.h>
@@ -57,13 +58,13 @@ void drawRect (CvRect rect, IplImage* img){
 
 //------------------------------end of drawRect-------------------------------
 
-struct Triangle {
+typedef struct Triangle {
 
     CvPoint pt[3];
     CvSeq* c;
 } Triangle;
 
-struct Rectangle {
+typedef struct Rectangle {
 
     int x;
     int y;
@@ -71,37 +72,59 @@ struct Rectangle {
     CvSeq* c;
 } Rectangle;
 
-struct Pentagon {
+typedef struct Pentagon {
 
     CvPoint pt[5];
     CvSeq* c;
 } Pentagon;
 
-struct Metric {
+	
+typedef struct Pattern {
 
-    int value;
+    CvPoint center;
+    CvSeq* c;
+    Rectangle r;
+    CvRect cv_rect;
+} Pattern;
+
+typedef struct Metric {
+
+    int total;
+    int numberOfPatterns;
     char keep;
+    Pattern p_list[10];
 } Metric;
 
 
-//*************************  AREA RATION CHECK  ***************************
+//**************************** RATIO CHECK  ******************************
 //*************************************************************************
 
-static char areaRatioCheck(CvSeq* c1, CvSeq* c2, double r_max){
+static char ratioCheck(CvSeq* c1, CvSeq* c2, double areaRatioMax, double heightRatioMax){
 
-    double res1, res2;
-    double ratio;
+double area1, area2;
+double height1, height2;
+double areaRatio, heightRatio;
 
-    res1=fabs(cvContourArea(c1, CV_WHOLE_SEQ,0));
-    res2=fabs(cvContourArea(c2, CV_WHOLE_SEQ,0));
+CvRect r1, r2;
 
-    if(res1 > res2) ratio = res1/res2;
-    else ratio = res2/res1;
+area1=fabs(cvContourArea(c1, CV_WHOLE_SEQ,0));
+area2=fabs(cvContourArea(c2, CV_WHOLE_SEQ,0));
 
-    if(ratio <= r_max) {
-        return 1;
-    }
-    return 0;
+r1 = ((CvContour *) c1)->rect;
+r2 = ((CvContour *) c2)->rect;
+height1 = r1.height;
+height2 = r2.height;
+
+if(height1 > height2) areaRatio = height1/height2;
+else areaRatio = height2/height1;
+
+if(area1 > area2) areaRatio = area1/area2;
+else areaRatio = area2/area1;
+
+if(areaRatio <= areaRatioMax && heightRatio <= heightRatioMax) {
+return 1;
+}
+return 0;
 }
 //-----------------------end areaRatioCheck---------------------------------
 
@@ -147,25 +170,29 @@ return ret;
     //------------------------ end findCorner -------------------------------
 
     //--------------------------- findBox_r ---------------------------------
-
-void findBox_r(struct Rectangle* s_list, CvPoint* ret){
+            //(do not touch, ever)
+void findBox_r(struct Pattern* p_list, CvPoint* ret){
     int i, tempx, tempy, min=32000, value;
     CvPoint tl, bl, tr, br;
-
+    struct Rectangle s_list[4];
+    
+    for(i=0; i<4; i++){
+        s_list[i] = p_list[i].r;
+    }
     
     //find top left
     for(i=0; i<4; i++){
-        value = sqrt( pow(s_list[i].x, 2) + pow(s_list[i].y, 2)); 
+        value = sqrt( pow(p_list[i].center.x, 2) + pow(p_list[i].center.y, 2)); //Uses x,y coords of the PATTERNS
         if(value < min){    
             min = value; 
-            bl= s_list[i].pt[ findCorner(&s_list[i].pt[0], 0) ]; 
+            bl= s_list[i].pt[ findCorner(&s_list[i].pt[0], 0) ]; //Checks x,y coords of the corners of a single pattern
         }
     }
     min = 32000;
     
     //find top right
     for(i=0; i<4; i++){
-        value = sqrt( pow(640-s_list[i].x, 2) + pow(s_list[i].y, 2)); 
+        value = sqrt( pow(640-p_list[i].center.x, 2) + pow(p_list[i].center.y, 2)); 
         if(value < min){ 
             min = value; 
             br = s_list[i].pt[  findCorner(&s_list[i].pt[0], 1) ]; 
@@ -175,7 +202,7 @@ void findBox_r(struct Rectangle* s_list, CvPoint* ret){
 
     //find bottom right
     for(i=0; i<4; i++){
-        value = sqrt( pow(640-s_list[i].x, 2) + pow(480-s_list[i].y, 2)); 
+        value = sqrt( pow(640-p_list[i].center.x, 2) + pow(480-p_list[i].center.y, 2)); 
         if(value < min){ 
             min = value; 
             tr=s_list[i].pt[  findCorner(&s_list[i].pt[0], 2) ]; 
@@ -185,7 +212,7 @@ void findBox_r(struct Rectangle* s_list, CvPoint* ret){
 
     //find bottom left
     for(i=0; i<4; i++){
-        value = sqrt( pow(s_list[i].x, 2) + pow(480 - s_list[i].y, 2)); 
+        value = sqrt( pow(p_list[i].center.x, 2) + pow(480 - p_list[i].center.y, 2)); 
         if(value < min){ 
             min = value; 
             tl=s_list[i].pt[ findCorner(&s_list[i].pt[0], 3) ];
@@ -269,7 +296,7 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
     cvThreshold(source, tempImage, thresh, 255, CV_THRESH_BINARY);
     cvFindContours(tempImage, storage, &contour, sizeof(CvContour), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE, cvPoint (0,0));
 
-    m.value=0;
+    m.total=0;
     m.keep=0;
 
     while(contour){
@@ -401,7 +428,7 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
 
         //---------------------------------------------------------------------------
 
-
+/*
         //*************************  FIND POLYGONS  ***** aawww yeaaahhh ************
         int total = result->total;
         if(total > 5 && area > 100){
@@ -420,8 +447,7 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
                 cvLine(img, polygon[i], polygon[0], cvScalar(255,20*i,255,0),4,8,0);
             }
         }
-
-
+*/
         //obtain the next contour
         contour = contour->h_next; 
     } // End of while(1)
@@ -435,49 +461,30 @@ struct Metric shapeProcessing(IplImage* img, IplImage* source, int thresh){
             //Check if the triangle is inside the rectangle
             if( triangleInRectangleTest( r_list[i].c, &t_list[j]) ) {
 
-                if(areaRatioCheck(r_list[i].c, t_list[j].c, 20)) {
+                if(ratioCheck(r_list[i].c, t_list[j].c, 7, 2)) {
 
                     CvRect rect = ((CvContour *) r_list[i].c)->rect;
                     
-                    //Send center coords for detected calibration shapes
-                    //s_list[s_counter].x = rect.x + rect.width/2;
-                    //s_list[s_counter].y = rect.y + rect.height/2;
+                    //Store CvRect for use in drawRect
+                    m.p_list[s_counter].cv_rect = rect;
                     
-                    //Send corners
+                    //Store corners of the rectangle
                     for(k=0; k<4; k++){
-                        rectList[s_counter].pt[k] = r_list[i].pt[k];
-                        rectList[s_counter].x = rect.x + rect.width/2;
-                        rectList[s_counter].y = rect.y + rect.height/2;  
+                        m.p_list[s_counter].r.pt[k] = r_list[i].pt[k]; 
                     }
+                    
+                    //Store center coords pf the pattern
+                    m.p_list[s_counter].center.x = rect.x + rect.width/2;
+                    m.p_list[s_counter].center.y = rect.y + rect.height/2; 
                     
                     s_counter++;
                     m.keep=1;
-                    drawRect(rect, img);
-
-                    //if(s_counter > 0) {
-                    //    printf("Found %d shapes in layer %d\n", s_counter, j);
-                    //}
-                    if(s_counter >= 4) {
-
-                        //Find which shape is in which corner using pythagoras 
-                        //findBox(&s_list[0]);
-
-                        findBox_r(&rectList[0], &s_list[0]);
-
-                        box->topLeft = s_list[0];
-                        box->topRight = s_list[1];
-                        box->bottomLeft = s_list[2];
-                        box->bottomRight = s_list[3];
-                        m.value = -1;
-                        m.keep = 1;
-                        goto clean_return;
-                    }
                 }
             }
         }
     }
-    m.value = r_counter + t_counter + p_counter;
-clean_return:
+    m.numberOfPatterns = s_counter;
+    m.total = r_counter + t_counter + p_counter;
     cvReleaseMemStorage(&storage);
     cvReleaseImage(&tempImage);
     return m;
@@ -486,7 +493,52 @@ clean_return:
 
 //------------------------------end of shapeProcessing--------------------------------------
 
+//****************************** FIND DISTANCE *********************************************
+// finds distance between 2 CvPoints using pythagoras
+int findDistance(CvPoint p1, CvPoint p2){
 
+    int xDist, yDist;
+
+    xDist = abs(p1.x-p2.x);
+    yDist = abs(p1.y-p2.y);
+
+    return sqrt( pow(xDist,2) + pow(yDist,2) );
+}
+//-----------------------------------------------------------------------------------------
+
+
+//*******************************  REDUCE PATTERNS  ***************************************
+//*****************************************************************************************
+
+int reducePatterns(Pattern* allPatterns, Pattern* reducedPatterns, int numberOfPatterns){
+
+int i,j;
+int reducedCounter=0;
+int newPattern;
+Pattern temp;
+
+    for(i=0; i<numberOfPatterns; i++){
+    
+        newPattern = 1;
+        temp = allPatterns[i];
+        //Check if this pattern is within 10px of another pattern in the reduced pattern list.
+        //If not, it is added to the reduced pattern list
+        for(j=0; j<reducedCounter; j++){
+            if(findDistance(temp.center, reducedPatterns[j].center) < 10){
+                newPattern=0;
+            }
+        }
+         
+        if(newPattern){ 
+            reducedPatterns[reducedCounter] = temp;
+            reducedCounter++;
+        }    
+    }
+    return reducedCounter;
+}
+
+
+//-----------------------------------------------------------------------------------------
 
 
 //********************************  SET THRESHOLDS  ***************************************
@@ -496,7 +548,7 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
     int i,j; //General purpose counters
     int markerCounter=0;
     int r;
-    int min = metric[0].value;
+    int min = metric[0].total;
     int min_i=0;
 
     char change = 1;
@@ -508,7 +560,7 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
         if(metric[i].keep) {
             //printf("Layer %d locked.\n", i);
         }
-        if(metric[i].value <= 5 && !metric[i].keep){//Check if this layer is below minimum metric
+        if(metric[i].total <= 5 && !metric[i].keep){//Check if this layer is below minimum metric
 
             r=rand() % 256;
             //Randomize a threshold and make sure no other layer is using that threshold
@@ -530,8 +582,8 @@ void setThresholds(int* threshold, struct Metric* metric, int numberOfIntervals)
         //Find layer with the lowest metric
         for(i=0; i<numberOfIntervals; i++){
 
-            if(metric[i].value < min && !metric[i].keep){
-                min = metric[i].value;
+            if(metric[i].total < min && !metric[i].keep){
+                min = metric[i].total;
                 min_i = i;
             }
         }
@@ -566,6 +618,9 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     int threshold[100];
     int i,j;
 	int frameCounter=0;
+    int totalNumberOfPatterns=0;
+    int numberOfReducedPatterns=0;
+
 
     char dynamicThresholding=1;
     char run=1;
@@ -575,6 +630,11 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
     struct Metric metric[100];
     IplImage* imgGrayScale;
     IplImage* img;
+
+    Pattern allPatterns[100];
+    Pattern reducedPatterns[10];
+
+    CvPoint s_list[4];
 
     CvSeq*   contourArray[100];
     CvMemStorage *storage = cvCreateMemStorage(0); //storage area for all contours
@@ -628,13 +688,35 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
         // Awesome shapeProcessing function calls
         for(i=0; i<numberOfIntervals; i++){
             metric[i] = shapeProcessing(img, imgGrayScale, threshold[i]);
-            if(metric[i].value == -1) {
-                got_result = 1;
-                run = 0;
-            }
-            //printf("Threshold %d: %d, metric: %d\n", i, threshold[i], metric[i].value);
+                
+	        //Append patterns found in the layers to allPatterns list
+	        for(j=0; j<metric[i].numberOfPatterns; j++){
+	        
+	            allPatterns[totalNumberOfPatterns] = metric[i].p_list[j];
+	            totalNumberOfPatterns++;
+	        }            
         }
 
+
+        // Reduce patterns
+        numberOfReducedPatterns = reducePatterns(allPatterns, reducedPatterns, totalNumberOfPatterns);
+    
+        for(i=0; i<numberOfReducedPatterns; i++){
+            drawRect(reducedPatterns[i].cv_rect, img);
+        }        
+
+        if(numberOfReducedPatterns == 4){
+        
+            findBox_r(&reducedPatterns[0], &s_list[0]);
+
+            box->topLeft = s_list[0];
+            box->topRight = s_list[1];
+            box->bottomLeft = s_list[2];
+            box->bottomRight = s_list[3];
+            got_result = 1;
+            run = 0;
+        }        
+    
         // Adjust thresholds 
         if(dynamicThresholding) {
             setThresholds(&threshold[0], &metric[0], numberOfIntervals);
@@ -647,6 +729,9 @@ int shapeDetector(BoundingBox* result, CvCapture* capture, int numberOfIntervals
                 threshold[i] = start_t+((i+1)*interval);
             }
         }
+
+        numberOfReducedPatterns=0;
+        totalNumberOfPatterns=0;
 
         //show the image in which identified shapes are marked   
         cvShowImage("Tracked",img);
