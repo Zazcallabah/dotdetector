@@ -87,6 +87,13 @@ typedef struct ClickParams {
 
 static char state = GRAB_DOTS;
 
+
+static const char* red_lable = "Red";
+static const char* green_lable = "Green";
+static const char* blue_lable = "Blue";
+static const char* min_area_lable = "Min area";
+static const char* exposure_lable = "Exposure";
+
 // The definition of a single element in the send queue
 typedef struct SendQueue {
     float point[2]; // x and y
@@ -318,17 +325,16 @@ void toggleWarpOutput(char state) {
     }
 }
 
-void toggleCalibrationMode(char* calibrate, int* currentExposure, int* lastTestedExposure) {
+void toggleCalibrationMode(char* calibrate, int* currentExposure) {
     if( *calibrate ) {
         printf("cancelled\n");
         *calibrate = 0;
-        cvSetTrackbarPos(exposure_lable, configwindowname, *currentExposure);
     }
     else {
         printf( "Starting calibration... " );
         *calibrate = 1; 
         if(calibrate) {
-            *lastTestedExposure = 10;   
+            *currentExposure = 10;   
         }
     }
 }
@@ -367,18 +373,12 @@ void makeCalibrate(BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, i
 int run(const char *serverAddress, const int serverPort, char headless) {
     char calibrate = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = 0; //"Boolean" values used in this loop
     char noiceReduction = 2; //Small counter, so char is still ok.
-    const char* red_lable = "Red";
-    const char* green_lable = "Green";
-    const char* blue_lable = "Blue";
-    const char* min_area_lable = "Min area";
-    const char* exposure_lable = "Exposure";
     int i, sockfd; //Generic counter
     int dp = 0, minDist = 29, param1 = 0, param2 = 5; // Configuration variables for circle detection 
     int minDotRadius = 1;
     int detected_dots; //Detected dot counter
     int returnValue = EXIT_SUCCESS;
     int captureControl; //File descriptor for low-level camera controls
-    int lastTestedExposure = 10;
     int currentExposure = 10;
     int maxExposure = 1250; //Maximum exposure supported by the camera TODO Get this from the actual camera
     Color min = {100, 200, 100, 0}; //Minimum color to detect
@@ -658,23 +658,21 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                 /* If calibrating, do the calibration */
                 if(calibrate) {
                     int ret;
-                    ret = calibrateExposureLow(captureControl, detected_dots, lastTestedExposure, maxExposure, lastKnownFPS);
+                    ret = calibrateExposureLow(captureControl, detected_dots, currentExposure, maxExposure, lastKnownFPS);
                     if(ret != -1 && ret != -2 && ret != 9999) { //TODO Make more sensable return values
-                        lastTestedExposure = ret;
+                        currentExposure = ret;
                     } else if(ret == 9999) {
                         calibrate = 0;
                         fprintf(stderr, "ERROR: Maximum exposure reached. \n");
-                        lastTestedExposure = 10;
+                        currentExposure = 10;
                     } else if(ret == -1) {
                         calibrate = 0;
                         printf( "Calibration done.\n");
-                        lastTestedExposure = 10;
                     } else if(ret == -2) {
                         calibrate = 0;
                         fprintf(stderr, "FPS fallen under 20. \n"); //This is the limit I'm trying to figure out.
-                        lastTestedExposure = 10;
+                        currentExposure = 10;
                     }
-                    cvSetTrackbarPos( "Exposure", NULL, currentExposure );
                 }
 
                 break; //End of GRAB_DOTS
@@ -716,13 +714,14 @@ int run(const char *serverAddress, const int serverPort, char headless) {
 
         /* Update exposure if needed */
         updateAbsoluteExposure(captureControl, currentExposure);
+        cvSetTrackbarPos(exposure_lable, configwindowname, currentExposure);
 
         //If ESC key pressed, Key=0x10001B under OpenCV 0.9.7(linux version),
         //remove higher bits using AND operator
         i = (cvWaitKey(10) & 0xff);
         switch(i) {
             case 'g': makeCalibrate(&DD_transform, &DD_transform_to, transMat, capture, captureControl, 20); updateAbsoluteExposure(captureControl, currentExposure+1); break;
-            case 'c': toggleCalibrationMode(&calibrate, &currentExposure, &lastTestedExposure); break; /* Toggles calibration mode */
+            case 'c': toggleCalibrationMode(&calibrate, &currentExposure); break; /* Toggles calibration mode */
             case 's': show = ~show; break; //Toggles updating of the image. Can be useful for performance of slower machines... Or as frame freeze
             case 'm': state = SELECT_MASK; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_mask; break; //Starts selection of masking area. Will return to dot detection once all four points are set
             case 't': state = SELECT_TRANSFORM; clickParams.currentPoint = TOP_LEFT; clickParams.DD_box = &DD_transform; break; //Starts selection of the transformation area. Returns to dot detection when done.
