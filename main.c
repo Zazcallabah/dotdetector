@@ -353,8 +353,8 @@ void makeCalibrate(BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, i
 
 // Runs the dot detector and sends detected dots to server on port TODO Implement headless. Needs more config options and/or possibly a config file first though
 int run(const char *serverAddress, const int serverPort, char headless) {
-    char calibrate = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = ~0; //"Boolean" values used in this loop
-    char noiceReduction = 0; //Small counter, so char is still ok.
+    char calibrate = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = 0; //"Boolean" values used in this loop
+    char noiceReduction = 2; //Small counter, so char is still ok.
     int i, sockfd; //Generic counter
     int dp = 0, minDist = 29, param1 = 0, param2 = 5; // Configuration variables for circle detection 
     int minDotRadius = 1;
@@ -431,7 +431,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     cvNamedWindow("configwindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
 
     // Create a window to hold the transformed image. Handy to see how the dots are translated, but not needed for functionality
-    cvNamedWindow("warpwindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
+    if(warp) cvNamedWindow("warpwindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
 
     // Create sliders to adjust the lower color boundry
     cvCreateTrackbar("Red",     "configwindow", &min.red,   255,    NULL);
@@ -699,6 +699,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
 
         /* Update exposure if needed */
         updateAbsoluteExposure(captureControl, currentExposure);
+        cvSetTrackbarPos( "Exposure", "configwindow", currentExposure );
 
         //If ESC key pressed, Key=0x10001B under OpenCV 0.9.7(linux version),
         //remove higher bits using AND operator
