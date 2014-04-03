@@ -32,6 +32,18 @@
 #define SELECT_MASK 2
 #define SELECT_TRANSFORM 3
 
+#ifndef imagewindowname
+#define imagewindowname "imagewindow"
+#endif
+
+#ifndef configwindowname
+#define configwindowname "configwindow"
+#endif
+
+#ifndef warpwindowname
+#define warpwindowname "warpwindow"
+#endif
+
 // Corners of a bounding box
 //
 // 0 ------- 1
@@ -299,10 +311,10 @@ void calibrateClick(int event, int x, int y, int flags, void* param) {
 // Creates or destroys the warp window
 void toggleWarpOutput(char state) {
     if(state) {
-        cvNamedWindow("warpwindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
+        cvNamedWindow(warpwindowname, CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
     }
     else {
-        cvDestroyWindow("warpwindow");
+        cvDestroyWindow(warpwindowname);
     }
 }
 
@@ -310,7 +322,7 @@ void toggleCalibrationMode(char* calibrate, int* currentExposure, int* lastTeste
     if( *calibrate ) {
         printf("cancelled\n");
         *calibrate = 0;
-        cvSetTrackbarPos("Exposure", "configwindow", *currentExposure);
+        cvSetTrackbarPos(exposure_lable, configwindowname, *currentExposure);
     }
     else {
         printf( "Starting calibration... " );
@@ -355,6 +367,11 @@ void makeCalibrate(BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, i
 int run(const char *serverAddress, const int serverPort, char headless) {
     char calibrate = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = 0; //"Boolean" values used in this loop
     char noiceReduction = 2; //Small counter, so char is still ok.
+    const char* red_lable = "Red";
+    const char* green_lable = "Green";
+    const char* blue_lable = "Blue";
+    const char* min_area_lable = "Min area";
+    const char* exposure_lable = "Exposure";
     int i, sockfd; //Generic counter
     int dp = 0, minDist = 29, param1 = 0, param2 = 5; // Configuration variables for circle detection 
     int minDotRadius = 1;
@@ -420,29 +437,29 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         //return EXIT_FAILURE;
     }
 
-    if(updateAbsoluteExposure(captureControl, currentExposure) == -1) {
+    if(updateAbsoluteExposure(captureControl, currentExposure) == 0) {
         fprintf(stderr, "ERROR: Cannot set exposure\n");
     }
 
     // Create a window in which the captured images will be presented
-    cvNamedWindow("imagewindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL );
+    cvNamedWindow(imagewindowname, CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL );
 
     // Create a window to hold the configuration sliders and the detection frame TODO This is kind of a hack. Make a better solution
-    cvNamedWindow("configwindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
+    cvNamedWindow(configwindowname, CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
 
     // Create a window to hold the transformed image. Handy to see how the dots are translated, but not needed for functionality
-    if(warp) cvNamedWindow("warpwindow", CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
+    if(warp) cvNamedWindow(warpwindowname, CV_WINDOW_AUTOSIZE | CV_WINDOW_KEEPRATIO | CV_GUI_NORMAL);
 
     // Create sliders to adjust the lower color boundry
-    cvCreateTrackbar("Red",     "configwindow", &min.red,   255,    NULL);
-    cvCreateTrackbar("Green",   "configwindow", &min.green, 255,    NULL);
-    cvCreateTrackbar("Blue",    "configwindow", &min.blue,  255,    NULL);
+    cvCreateTrackbar(red_lable  , configwindowname, &min.red,   255, NULL);
+    cvCreateTrackbar(green_lable, configwindowname, &min.green, 255, NULL);
+    cvCreateTrackbar(blue_lable , configwindowname, &min.blue,  255, NULL);
 
     //Create sliters for the contour based dot detection
-    cvCreateTrackbar("Min area","configwindow", &minDotRadius,255,    NULL);
+    cvCreateTrackbar(min_area_lable, configwindowname, &minDotRadius,255, NULL);
 
     /* Slider for manual exposure setting */
-    cvCreateTrackbar("Exposure", "configwindow", &currentExposure, maxExposure, NULL);
+    cvCreateTrackbar(exposure_lable, configwindowname, &currentExposure, maxExposure, NULL);
 
     //Create the memory storage
     storage = cvCreateMemStorage(0);
@@ -454,8 +471,8 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     grabbedImage = cvQueryFrame(capture);
 
     //Move the two windows so both are visible at the same time
-    cvMoveWindow("imagewindow", 0, 10);
-    cvMoveWindow("configwindow", grabbedImage->width+2, 10);
+    cvMoveWindow(imagewindowname, 0, 10);
+    cvMoveWindow(configwindowname, grabbedImage->width+2, 10);
 
     //TODO Move these three inits to a function
     // Set masking defaults TODO load from file? Specify file for this file loading?
@@ -504,7 +521,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     calculateTransformationMatrix(&DD_transform, &DD_transform_to, transMat);
 
     // Set callback function for mouse clicks
-    cvSetMouseCallback("imagewindow", calibrateClick, (void*) &clickParams );
+    cvSetMouseCallback(imagewindowname, calibrateClick, (void*) &clickParams );
 
     gettimeofday(&oldTime, NULL);
 
@@ -652,12 +669,12 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                         calibrate = 0;
                         printf( "Calibration done.\n");
                         lastTestedExposure = 10;
-                        cvSetTrackbarPos("Exposure", "configwindow", currentExposure);
                     } else if(ret == -2) {
                         calibrate = 0;
                         fprintf(stderr, "FPS fallen under 20. \n"); //This is the limit I'm trying to figure out.
                         lastTestedExposure = 10;
                     }
+                    cvSetTrackbarPos( "Exposure", NULL, currentExposure );
                 }
 
                 break; //End of GRAB_DOTS
@@ -667,7 +684,7 @@ int run(const char *serverAddress, const int serverPort, char headless) {
                 //want to do different things in these two some day.
             case SELECT_MASK:
                 snprintf(strbuf, sizeof(strbuf), "Select %s point", pointTranslationTable[clickParams.currentPoint]);
-                cvDisplayOverlay("imagewindow", strbuf, 5);
+                cvDisplayOverlay(imagewindowname, strbuf, 5);
                 break; //End of SELECT_MASK and SELECT_TRANSFORM
         }
 
@@ -686,9 +703,9 @@ int run(const char *serverAddress, const int serverPort, char headless) {
         //Show images 
         PROFILING_PRO_STAMP();
         if (show) {
-            cvShowImage("configwindow", imgThreshold);
-            cvShowImage("imagewindow", grabbedImage);
-            if(warp) cvShowImage("warpwindow", coloredMask);
+            cvShowImage(configwindowname, imgThreshold);
+            cvShowImage(imagewindowname, grabbedImage);
+            if(warp) cvShowImage(warpwindowname, coloredMask);
         }
         PROFILING_POST_STAMP("Showing images");
 
@@ -699,7 +716,6 @@ int run(const char *serverAddress, const int serverPort, char headless) {
 
         /* Update exposure if needed */
         updateAbsoluteExposure(captureControl, currentExposure);
-        cvSetTrackbarPos( "Exposure", "configwindow", currentExposure );
 
         //If ESC key pressed, Key=0x10001B under OpenCV 0.9.7(linux version),
         //remove higher bits using AND operator
@@ -726,9 +742,9 @@ int run(const char *serverAddress, const int serverPort, char headless) {
     cvReleaseImage(&grabbedImage);
     cvReleaseCapture( &capture );
     cvReleaseMemStorage( &storage );
-    cvDestroyWindow( "imagewindow" );
-    cvDestroyWindow( "configwindow" );
-    if(warp) cvDestroyWindow( "warpwindow" ); //If now warp it is already destroyed
+    cvDestroyWindow( imagewindowname );
+    cvDestroyWindow( configwindowname );
+    if(warp) cvDestroyWindow( warpwindowname ); //If now warp it is already destroyed
     destroySendQueue(queue);
     close(sockfd);
     close(captureControl);
