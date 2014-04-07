@@ -35,14 +35,14 @@ void initDDhelpers( int screen_width, int screen_height, int pattern_rect_size, 
 #endif
 
 // Transforms the coordinates of the dots given by dotdetector to
-// the resolution the program runs in (as set up with initDDhelper()).
+// the resolution the program runs in (as set up with initDDhelpers()).
 // Input: laser_pointer_buf - The same float array that dotdetector returns
 //                            the detected dots in
 //        no_dots - The number of dots detected
 void transformDots( float* laser_point_buf, int no_dots );
 
 // Draws the calibration pattern as described in the description
-// for initDDhelper(). It depends on SDL2 and SDL2_gfx. It is
+// for initDDhelpers(). It depends on SDL2 and SDL2_gfx. It is
 // up to the programmer calling this function to make sure
 // nothing is drawn over the pattern (hint: call this as the last
 // thing before presenting to screen).
