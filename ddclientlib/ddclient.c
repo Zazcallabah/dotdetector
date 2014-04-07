@@ -84,7 +84,7 @@ int parsePoint( float* result, char* strPoint ) {
 }
 
 // Parses to full string from the dot detector.
-// Input: points - The pointer to an array of float points[MAX_POINTS][2], where the result will be stored
+// Input: points - The pointer to an array of float points[DD_MAX_DOTS][2], where the result will be stored
 //        inputString - The string as received from the dot detector
 // Returns: The number of points added to the array
 int parsePoints( float* points, char* inputString, int* seqNumber ) {
