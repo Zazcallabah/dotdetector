@@ -5,14 +5,19 @@ static int tri_offset = 30;
 static int screen_w = 0;
 static int screen_h = 0;
 
+// If we don't compile with SDL we don't need the sizes for the detection pattern
+#ifdef NO_SDL
+void initDDhelpers( int screen_width, int screen_height ) {
+#else
 void initDDhelpers( int screen_width, int screen_height, int pattern_rect_size, int triangle_offset ) {
-    screen_w = screen_width;
-    screen_h = screen_height;
     pattern_size = pattern_rect_size;
     tri_offset = triangle_offset;
+#endif
+    screen_w = screen_width;
+    screen_h = screen_height;
 }
 
-void transformBase( float* v, const int from_dim, const int to_dim ) {
+static void transformBase( float* v, const int from_dim, const int to_dim ) {
     *v = ( *v * (float)to_dim ) / (float)from_dim;
 }
 
@@ -24,6 +29,10 @@ void transformDots( float* laser_point_buf, int no_dots ) {
     }
 }
 
+// Below is functions related to drawing the detection pattern. If we
+// compile without SDL support we can't use any of it, so in that case
+// we don't even bother compiling it (and it wouldn't compile anyway)
+#ifndef NO_SDL
 static void setRect( SDL_Rect* rect, int x, int y, int w, int h ) {
     rect->x = x;
     rect->y = y;
@@ -107,4 +116,6 @@ void drawCalibrationPattern( SDL_Renderer* renderer ) {
     }
 
 }
+
+#endif
 
