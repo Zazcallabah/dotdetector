@@ -133,7 +133,7 @@ int parsePoints( float* points, char* inputString, int* seqNumber ) {
 //                packages, should that be required.
 // Return: The number of dots in the current result matrix
 int getDots(int sockfd, float* resultMatrix, char* dotsUpdated, int* seqNr) {
-    static char netBuf[SEND_BUF_SIZE];
+    static char netBuf[DD_SEND_BUF_SIZE];
     ssize_t receivedBytes = 0;
     static int dots;
     *dotsUpdated = 0;
