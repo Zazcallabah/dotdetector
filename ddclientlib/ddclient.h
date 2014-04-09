@@ -9,11 +9,22 @@
 #define DD_MAX_DOTS 150
 #endif
 
+// The strategy for the listener thread.
+//   LATEST  - Consume packages as soon as they arrive and deliver
+//             the most recent when asked. Any package in between
+//             is discarded
+//   ORDERED - Deliver the packages in the order they arrive. No
+//             packages are discarded
+enum strategy { LATEST, ORDERED };
+
 // Starts up the dot detector client part
 // Input:   Address to bind to (currently unused)
 //          port to listen to
-// Returns: A socket to be passed to getDots()
-int initDDclient( const char *serverAddress, const int serverPort );
+// Returns: 0 if successful, non-zero if an error occured.
+//          Negative values indicates critical failures,
+//          positive values indicates some non-critical failure
+//          (but it's likely everything will come craching down anyway)
+int initDDclient( const char *serverAddress, const int serverPort, enum strategy delivert_strat );
 
 // Parses a single point formated as by the dot detector
 // Input: result - A pointer to where the result should be stored
@@ -25,7 +36,7 @@ int parsePoint( float* result, char* strPoint );
 // Input: points - The pointer to an array of float points[MAX_POINTS][2], where the result will be stored
 //        inputString - The string as received from the dot detector
 // Returns: The number of points added to the array
-int parsePoints( float* points, char* inputString, int* seqNumber );
+int parsePoints( float* points, char* inputString, unsigned long long* seqNumber );
 
 // Get all received dots as an array of floats
 // Input: sockfd - The UDP socket to read the dots from
@@ -35,6 +46,6 @@ int parsePoints( float* points, char* inputString, int* seqNumber );
 //                received sequence number. It is up to the application to ignore out of order
 //                packages, should that be required.
 // Return: The number of dots in the current result matrix
-int getDots(int sockfd, float* resultMatrix, char* dotsUpdated, int* seqNr);
+int getDots( float* resultMatrix, char* dotsUpdated, unsigned long long* seqNr );
 
 #endif
