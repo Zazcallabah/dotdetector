@@ -190,7 +190,7 @@ void sendQueue( int sockfd, SendQueue *q )
     // Skip first entry
     q = q->next;
     while( q != NULL &&( SEND_BUF_SIZE - strlen( buf )) >= POINT_SIZE ) { //One point is estimated to be at most 16 byte. "xxxx.xx,yyyy.yy "
-        ret = snprintf(&buf[len], sizeof( buf ) - strlen( buf ), "%.2f,%.2f ", q->point[0], q->point[1]);
+        ret = snprintf( &buf[len], sizeof( buf ) - strlen( buf ), "%.2f,%.2f ", q->point[0], q->point[1]);
         if( ret < 0 ) {
             printf( "Foo\n" );
             break;
@@ -536,7 +536,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
     calculateTransformationMatrix( &DD_transform, &DD_transform_to, transMat );
 
     // Set callback function for mouse clicks
-    cvSetMouseCallback( imagewindowname, calibrateClick,( void*) &clickParams );
+    cvSetMouseCallback( imagewindowname, calibrateClick, ( void* ) &clickParams );
 
     gettimeofday( &oldTime, NULL );
 
@@ -580,7 +580,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                 //Mask away anything not in our calibration area
                 mask = cvCreateImage( cvGetSize( grabbedImage ), 8, 1 );
                 cvZero( mask );
-                cvFillConvexPoly( mask,( CvPoint*) &DD_mask, 4, cvScalar( WHITE ), 1, 0 );
+                cvFillConvexPoly( mask, ( CvPoint* ) &DD_mask, 4, cvScalar( WHITE ), 1, 0 );
                 cvAnd( imgThreshold, mask, imgThreshold, NULL );
 
                 // Invert mask, increase the number of channels in it and overlay on grabbedImage //TODO Tint the mask red before overlaying
@@ -652,9 +652,11 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                     // Draw the detected contour back to imgThreshold
                     // Draw the detected dot both to real image and to warped( if warp is active )
                     if( show ) {
-                        cvDrawContours( imgThreshold, seq, colorWhite, colorWhite, -1, CV_FILLED, 8, cvPoint( 0,0 ));
-                        drawCircle( absCenter[0], absCenter[1],( relCenterX + relCenterY ) / 2, grabbedImage );
-                        if( warp ) drawCircle( pointTransMat->data.fl[0], pointTransMat->data.fl[1],( relCenterX + relCenterY ) / 2, coloredMask );
+                        cvDrawContours( imgThreshold, seq, colorWhite, colorWhite, -1, CV_FILLED, 8, cvPoint( 0,0 ) );
+                        drawCircle( absCenter[0], absCenter[1], ( relCenterX + relCenterY ) / 2, grabbedImage );
+                        if( warp ) {
+                            drawCircle( pointTransMat->data.fl[0], pointTransMat->data.fl[1], ( relCenterX + relCenterY ) / 2, coloredMask );
+                        }
                     }
 
                     // Add detected dot to to send queue
@@ -664,8 +666,8 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                 PROFILING_POST_STAMP("Painting dots");
 
                 //Calculate framerate
-                gettimeofday(&time, NULL );
-                timeval_subtract(&diff, &time, &oldTime );
+                gettimeofday( &time, NULL );
+                timeval_subtract( &diff, &time, &oldTime );
                 lastKnownFPS = lastKnownFPS * 0.2 + ( 1000000.0 / diff.tv_usec ) * 0.8; //We naïvly assume we have more then 1 fps
                 oldTime = time;
 
@@ -738,7 +740,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
 
         //If ESC key pressed, Key=0x10001B under OpenCV 0.9.7( linux version ),
         //remove higher bits using AND operator
-        i =( cvWaitKey( 10 ) & 0xff );
+        i = ( cvWaitKey( 10 ) & 0xff );
         switch( i ) {
             case 'g': 
                 makeCalibrate( &DD_transform, &DD_transform_to, transMat, capture, captureControl, 20 );
