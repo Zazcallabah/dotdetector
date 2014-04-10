@@ -340,15 +340,15 @@ void toggleWarpOutput( char state ) {
     }
 }
 
-void toggleCalibrationMode( char* calibrate, int* currentExposure ) {
-    if( *calibrate ) {
+void toggleCalibrationMode( char* calibrate_exposure, int* currentExposure ) {
+    if( *calibrate_exposure ) {
         printf( "cancelled\n");
-        *calibrate = 0;
+        *calibrate_exposure = 0;
     }
     else {
         printf( "Starting calibration... " );
-        *calibrate = 1; 
-        if( calibrate ) {
+        *calibrate_exposure = 1; 
+        if( calibrate_exposure ) {
             *currentExposure = 10;   
         }
     }
@@ -386,7 +386,7 @@ void makeCalibrate( BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, 
 
 // Runs the dot detector and sends detected dots to server on port TODO Implement headless. Needs more config options and/or possibly a config file first though
 int run( const char *serverAddress, const int serverPort, char headless ) {
-    char calibrate = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = 0; //"Boolean" values used in this loop
+    char calibrate_exposure = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = 0; //"Boolean" values used in this loop
     char noiceReduction = 2; //Small counter, so char is still ok.
     int i, sockfd; //Generic counter
     int dp = 0, minDist = 29, param1 = 0, param2 = 5; // Configuration variables for circle detection 
@@ -396,8 +396,8 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
     int captureControl; //File descriptor for low-level camera controls
     int currentExposure = 10;
     int maxExposure = 1250; //Maximum exposure supported by the camera TODO Get this from the actual camera
-    Color min = {100, 200, 100, 0}; //Minimum color to detect
-    Color max = {255, 255, 255, 0}; //Maximum color to detect
+    Color min = { 0, 70, 0, 0 }; //Minimum color to detect
+    Color max = { 255, 255, 255, 0 }; //Maximum color to detect
     CvScalar colorWhite = cvScalar( WHITE ); //Color to draw detected dots on black and white surface
     BoundingBox DD_mask; //The box indicating what should and what should not be considered for dot search
     BoundingBox DD_transform; //The box indicating the plane we are looking at( and as such is the plane we would transform from )
@@ -521,17 +521,13 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
     DD_transform_to.topLeft.y = 0;
 
     DD_transform_to.topRight.x = grabbedImage->width-1;
-    //    DD_transform_to.topRight.x = 1000;
     DD_transform_to.topRight.y = 0;
 
     DD_transform_to.bottomLeft.x = 0;
     DD_transform_to.bottomLeft.y = grabbedImage->height-1;
-    //   DD_transform_to.bottomLeft.y = 1000;
 
     DD_transform_to.bottomRight.x = grabbedImage->width-1;
     DD_transform_to.bottomRight.y = grabbedImage->height-1;
-    //   DD_transform_to.bottomRight.x = 1000;
-    //   DD_transform_to.bottomRight.y = 1000;
 
     calculateTransformationMatrix( &DD_transform, &DD_transform_to, transMat );
 
@@ -668,7 +664,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                 //Calculate framerate
                 gettimeofday( &time, NULL );
                 timeval_subtract( &diff, &time, &oldTime );
-                lastKnownFPS = lastKnownFPS * 0.2 + ( 1000000.0 / diff.tv_usec ) * 0.8; //We naïvly assume we have more then 1 fps
+                lastKnownFPS = lastKnownFPS * 0.7 + ( 1000000.0 / diff.tv_usec ) * 0.3; //We naïvly assume we have more then 1 fps
                 oldTime = time;
 
                 //Send the dots detected this frame to the server
@@ -678,22 +674,19 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                 PROFILING_POST_STAMP( "Sending dots" );
 
                 /* If calibrating, do the calibration */
-                if( calibrate ) {
+                if( calibrate_exposure ) {
                     int ret;
-                    ret = calibrateExposureLow( captureControl, detected_dots, currentExposure, maxExposure, lastKnownFPS );
-                    if( ret != -1 && ret != -2 && ret != 9999 ) { //TODO Make more sensable return values
-                        currentExposure = ret;
-                    } else if( ret == 9999 ) {
-                        calibrate = 0;
-                        fprintf( stderr, "ERROR: Maximum exposure reached. \n");
-                        currentExposure = 10;
-                    } else if( ret == -1 ) {
-                        calibrate = 0;
-                        printf( "Calibration done.\n");
-                    } else if( ret == -2 ) {
-                        calibrate = 0;
-                        fprintf( stderr, "FPS fallen under 20. \n"); //This is the limit I'm trying to figure out.
-                        currentExposure = 10;
+                    ret = calibrateExposureLow( captureControl, detected_dots, &currentExposure, DD_MAX_EXPOSURE, lastKnownFPS );
+                    switch( ret ) {
+                        case 0: // We are done. Let's leave calibration mode
+                            calibrate_exposure = 0;
+                            printf( "done\n" );
+                            break;
+
+                        case -1: // We hit the upper limit with no detected dots
+                            fprintf( stderr, "Reached upper limit (%d). Aborting!\n", DD_MAX_EXPOSURE );
+                            calibrate_exposure = 0;
+                            break;
                     }
                 }
 
@@ -748,7 +741,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                 break;
 
             case 'c': 
-                toggleCalibrationMode( &calibrate, &currentExposure );
+                toggleCalibrationMode( &calibrate_exposure, &currentExposure );
                 break; /* Toggles calibration mode */
 
             case 's': 
