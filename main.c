@@ -348,9 +348,7 @@ void toggleCalibrationMode( char* calibrate_exposure, int* currentExposure ) {
     else {
         printf( "Starting calibration... " );
         *calibrate_exposure = 1; 
-        if( calibrate_exposure ) {
-            *currentExposure = 10;   
-        }
+        *currentExposure = 150;
     }
 }
 
@@ -394,7 +392,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
     int detected_dots; //Detected dot counter
     int returnValue = EXIT_SUCCESS;
     int captureControl; //File descriptor for low-level camera controls
-    int currentExposure = 10;
+    int currentExposure = 150;
     int maxExposure = 1250; //Maximum exposure supported by the camera TODO Get this from the actual camera
     Color min = { 0, 70, 0, 0 }; //Minimum color to detect
     Color max = { 255, 255, 255, 0 }; //Maximum color to detect
@@ -685,6 +683,16 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
 
                         case -1: // We hit the upper limit with no detected dots
                             fprintf( stderr, "Reached upper limit (%d). Aborting!\n", DD_MAX_EXPOSURE );
+                            calibrate_exposure = 0;
+                            break;
+
+                        case -2: // We hit lower limit with more then one dot detected
+                            fprintf( stderr, "Too bright. More then one dot found even with minimal exposure. Aborting!\n");
+                            calibrate_exposure = 0;
+                            break;
+
+                        case -3: //No conclusive results.
+                            fprintf( stderr, "No conclusive results. Giving up\n" );
                             calibrate_exposure = 0;
                             break;
                     }
