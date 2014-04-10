@@ -32,83 +32,81 @@ int calibrateExposureLow( int captureDevice, int detectedDots, int* exposure, in
     static int delta_up = 5;
     static int delta_down = 5;
 
-    if( delta_up == 0 ) {
-        delta_up = maximumExposure - *exposure;
-    }
-
-    if( delta_down == 0 ) {
-        delta_down = *exposure / 2;
-    }
-
-    if( *exposure >= maximumExposure ) {
-        total_time_counter = 0;
-        consistency_counter = 0;
-        dots_last_run = 0;
-        return -1;
-    }
-
-    if( *exposure == 0 ) {
-        total_time_counter = 0;
-        consistency_counter = 0;
-        dots_last_run = 0;
-        return -2;
-    }
-
-    if( detectedDots == 1 && dots_last_run == 1 ) {
-        if( ++consistency_counter >= 50 ) {
-            // We are done
-            // Reset state variables in case we want to run calibration again later
+    if( dots_last_run != -1 ) {
+        if( *exposure >= maximumExposure ) {
             total_time_counter = 0;
             consistency_counter = 0;
             dots_last_run = 0;
-            return 0;
+            return -1;
         }
-        else {
-            return 1; // Looking good, but not sure yet
-        }
-    } 
-    
-    if( consistency_counter > 0 ) {
-        consistency_counter = 0;
-        delta_up = fmax( delta_up / 2, 1 );
-        delta_down = fmax ( delta_down / 2, 1 );
-    }
-    if( detectedDots == 0 ) { // We didn't find any dots, let's up exposure some
-        if( dots_last_run == 0 ) {
-            *exposure += ( maximumExposure - *exposure ) / 5 + 1;
-        }
-        else {
-            *exposure += delta_up;
-        }
-    }
-    else { // At least one dot was found
-        if( dots_last_run == 0 ) { 
-            // We didn't find any dots last run. Lets up exposure some more
-            *exposure += delta_up;
-        } else { 
-            // We found more then one dot last run. Lets reduce exposure somewhat
-            *exposure -= delta_down;
-        }
-    }
 
-    if( *exposure < 0 ) {
-        //This shuldn't be possible, something is very wrong
-        fprintf( stderr, "ERROR! Exposure calibration broke!\n" );
-        total_time_counter = 0;
-        return -1;
+        if( *exposure <= 0 ) {
+            total_time_counter = 0;
+            consistency_counter = 0;
+            dots_last_run = 0;
+            *exposure = 1; // just to make sure we don't go below 0;
+            return -2;
+        }
+
+        if( detectedDots == 1 && dots_last_run == 1 ) {
+            if( ++consistency_counter >= 50 ) {
+                // We are done
+                // Reset state variables in case we want to run calibration again later
+                total_time_counter = 0;
+                consistency_counter = 0;
+                dots_last_run = 0;
+                return 0;
+            }
+            else {
+                return 1; // Looking good, but not sure yet
+            }
+        } 
+
+        if( consistency_counter > 0 ) {
+            consistency_counter = 0;
+            delta_up = fmax( delta_up / 2, 1 );
+            delta_down = fmax ( delta_down / 2, 1 );
+        }
+        if( detectedDots == 0 ) { // We didn't find any dots, let's up exposure some
+            if( dots_last_run == 0 ) {
+                *exposure += ( maximumExposure - *exposure ) / 5 + 1;
+            }
+            else {
+                *exposure += delta_up;
+            }
+        }
+        else { // At least one dot was found
+            if( dots_last_run == 0 ) { 
+                // We didn't find any dots last run. Lets up exposure some more
+                *exposure += delta_up;
+            } else { 
+                // We found more then one dot last run. Lets reduce exposure somewhat
+                *exposure -= delta_down;
+            }
+        }
+
+        if( *exposure < 0 ) {
+            //This shuldn't be possible, something is very wrong
+            fprintf( stderr, "ERROR! Exposure calibration broke!\n" );
+            total_time_counter = 0;
+            return -1;
+        }
+
+        dots_last_run = detectedDots;
+
+        setAbsoluteExposure( captureDevice, *exposure );
+
+        ++total_time_counter;
+        if( total_time_counter > 300 ) {
+            // Can't find consistent results. Giving up
+            total_time_counter = 0;
+            consistency_counter = 0;
+            dots_last_run = 0;
+            return -3;
+        }
     }
-
-    dots_last_run = detectedDots;
-
-    setAbsoluteExposure( captureDevice, *exposure );
-
-    ++total_time_counter;
-    if( total_time_counter > 300 ) {
-        // Can't find consistent results. Giving up
-        total_time_counter = 0;
-        consistency_counter = 0;
-        dots_last_run = 0;
-        return -3;
+    else {
+        dots_last_run = detectedDots;
     }
 
     return 1;
