@@ -382,6 +382,39 @@ void makeCalibrate( BoundingBox* from, BoundingBox* to, CvMat* t, CvCapture* c, 
     }
 }
 
+int openCamera( CvCapture** capture_ptr, int* capture_control ) {
+    static int cam_index = 9; // Does anyone ever have more then 10 cams at the same time?
+    int i=0;
+    char device_path[15];
+
+
+
+    if( *capture_ptr != NULL ) { //A camera has been opened already. We must close it first
+        cvReleaseCapture( capture_ptr );
+        close( *capture_control );
+    }
+    
+    while( ( *capture_ptr = cvCaptureFromCAM( cam_index ) ) == NULL ) {
+        cam_index = --cam_index == 0 ? 9 : cam_index;
+        if( i++ > 10 ) {
+            //We have made a full cycle and haven't found any camera. Lets fail
+            fprintf( stderr, "No camera found. Failing :(\n" );
+            return 0;
+        }
+    }
+
+    snprintf( device_path, sizeof( device_path ), "/dev/video%d", cam_index );
+    printf("control: %s\n", device_path );
+
+    /* Disable auto exposure for the device and set it low */
+    if( ( *capture_control = open( device_path, O_RDWR | O_NONBLOCK, 0 )) < 0 ) {
+        fprintf( stderr, "ERROR opening V4L2 interface from %s \n", device_path ); 
+    }
+
+    cam_index = cam_index-- == 0 ? 9 : cam_index;
+    return 1;
+}
+
 // Runs the dot detector and sends detected dots to server on port TODO Implement headless. Needs more config options and/or possibly a config file first though
 int run( const char *serverAddress, const int serverPort, char headless ) {
     char calibrate_exposure = 0, show = ~0, flip = 0, vflip = 0, done = 0, warp = 0; //"Boolean" values used in this loop
@@ -400,7 +433,7 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
     BoundingBox DD_mask; //The box indicating what should and what should not be considered for dot search
     BoundingBox DD_transform; //The box indicating the plane we are looking at( and as such is the plane we would transform from )
     BoundingBox DD_transform_to; //The plane we are transforming to
-    CvCapture *capture; //The camera
+    CvCapture *capture = NULL; //The camera
     CvMemStorage *storage; //Low level memory area used for dynamic structures in OpenCV
     CvSeq *seq; //Sequence to store detected dots in
     IplImage *grabbedImage = NULL; //Raw image from camera( plus some overlay in the end )
@@ -425,24 +458,9 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
     }
     queue = initSendQueue();
 
-    //  Capture from the highest connected device number. This is a really
-    //  bad solution, but it'll have to do for now. TODO Make this better
-    for( i = 20; i >= 0; --i ) {
-        capture = cvCaptureFromCAM( i );    
-        if( capture != NULL ) {
-            break;
-        }
-    }
-
-    if( capture == NULL ) {
+    if( openCamera( &capture, &captureControl ) == 0 ) {
         fprintf( stderr, "ERROR: capture is NULL \n" );
         return EXIT_FAILURE;
-    }
-
-    /* Disable auto exposure for the device and set it low */
-    if( ( captureControl = open( "/dev/video1", O_RDWR | O_NONBLOCK, 0 )) < 0 ) { //TODO Read this in a more dynamic way. Get it from 'capture'?
-        fprintf( stderr, "ERROR opening V4L2 interface \n"); 
-        //return EXIT_FAILURE;
     }
 
     if( ( disableAutoExposure( captureControl ) ) == -1 ) {
@@ -748,9 +766,13 @@ int run( const char *serverAddress, const int serverPort, char headless ) {
                 updateAbsoluteExposure( captureControl, currentExposure+1 );
                 break;
 
-            case 'c': 
+            case 'e': 
                 toggleCalibrationMode( &calibrate_exposure, &currentExposure );
                 break; /* Toggles calibration mode */
+
+            case 'c':
+                openCamera( &capture, &captureControl );
+                break;
 
             case 's': 
                 show = ~show;
