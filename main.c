@@ -395,7 +395,7 @@ int openCamera( CvCapture** capture_ptr, int* capture_control ) {
     }
     
     while( ( *capture_ptr = cvCaptureFromCAM( cam_index ) ) == NULL ) {
-        cam_index = --cam_index == 0 ? 9 : cam_index;
+        cam_index = --cam_index == -1 ? 9 : cam_index;
         if( i++ > 10 ) {
             //We have made a full cycle and haven't found any camera. Lets fail
             fprintf( stderr, "No camera found. Failing :(\n" );
@@ -411,7 +411,7 @@ int openCamera( CvCapture** capture_ptr, int* capture_control ) {
         fprintf( stderr, "ERROR opening V4L2 interface from %s \n", device_path ); 
     }
 
-    cam_index = cam_index-- == 0 ? 9 : cam_index;
+    cam_index = --cam_index == -1 ? 9 : cam_index;
     return 1;
 }
 
