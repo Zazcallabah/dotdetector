@@ -46,9 +46,13 @@ make && ./dotdetector [server ip] [server port]
 On rasberry pi
 -------------
 
-* apt-get install git
-* git clone (https://github.com/FireArrow/MultiDuckhunt.git)
-* download and install opencv. instructions at http://opencv.willowgarage.com/wiki/InstallGuide%20%3A%20Debian (Note: this takes ages!)
-* cd MultiDuckhunt/dotdetector
-* make
+    sudo apt-get install git nodejs
+    git clone https://github.com/FireArrow/MultiDuckhunt
+    git clone https://github.com/FireArrow/dotdetector
+    git clone https://github.com/Zazcallabah/Install-OpenCV
+    cd Install-OpenCV/RaspberryPi
+    ./opencv_latest.sh
+    cd ../../dotdetector
+    make
+
 
