@@ -60,3 +60,28 @@ On rasberry pi
     make
 
 
+Note that it was quicker for me to do all of the following:
+* create a new virtual server instance
+* install ubuntu
+* install distcc
+* configure distcc
+* write a new raspbian-image to a sdcard
+* start the pi and install raspbian
+* install distcc on the pi
+* configure distcc on the pi
+* install the raspberry toolchain on both computers
+* install all opencv prerequisites on the pi
+* configure cmake for opencv on the pi
+* try build opencv using distcc, fail
+* debug gcc on the build server
+* figure out the problem being 64bit vs 32bit libraries 
+* install correct libraries on the build server
+* retry
+* finish opencv build
+
+than to just build on the raspberry directly. Despite not having heard of distcc before now.
+
+for reference:
+* http://askubuntu.com/questions/73491/no-such-file-or-directory-for-existing-executable/165536#165536
+* http://jeremy-nicola.info/portfolio-item/cross-compilation-distributed-compilation-for-the-raspberry-pi/
+
