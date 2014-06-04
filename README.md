@@ -50,9 +50,9 @@ On rasberry pi
     # sudo sh -c 'echo "CONF_SWAPSIZE=500" > /etc/dphys-swapfile'
 
     sudo apt-get install git nodejs
-    git clone https://github.com/FireArrow/MultiDuckhunt
-    git clone https://github.com/FireArrow/dotdetector
-    git clone https://github.com/Zazcallabah/Install-OpenCV
+    git clone https://github.com/FireArrow/MultiDuckhunt --depth=1
+    git clone https://github.com/FireArrow/dotdetector --depth=1
+    git clone https://github.com/Zazcallabah/Install-OpenCV --depth=1
     cd Install-OpenCV/RaspberryPi
     # the following step can take 10 hours
     ./opencv_latest.sh
