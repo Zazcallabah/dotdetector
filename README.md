@@ -49,16 +49,25 @@ On rasberry pi
     # if your pi has only 256 MB memory (check using 'free -m'), run this and reboot:
     # sudo sh -c 'echo "CONF_SWAPSIZE=500" > /etc/dphys-swapfile'
 
-    sudo apt-get install git nodejs
-    git clone https://github.com/FireArrow/MultiDuckhunt --depth=1
+    sudo apt-get install git
     git clone https://github.com/FireArrow/dotdetector --depth=1
     git clone https://github.com/Zazcallabah/Install-OpenCV --depth=1
     cd Install-OpenCV/RaspberryPi
-    # the following step can take 10 hours
+    # the following step can take 48+ hours, I'd recommend distcc (see links below) to speed up the process
     ./opencv_latest.sh
     cd ../../dotdetector
     make
+    ./dotdetector
 
+in another terminal:
+
+    sudo apt-get install nodejs npm
+    git clone https://github.com/FireArrow/MultiDuckhunt --depth=1
+    cd MultiDuckhunt
+    npm install ws
+    nodejs server.js
+
+then surf to http://localhost:8888/ using your favorite browser. (must support webgl)
 
 Note that it was quicker for me to do all of the following:
 * create a new virtual server instance
@@ -79,7 +88,7 @@ Note that it was quicker for me to do all of the following:
 * retry
 * finish opencv build
 
-than to just build on the raspberry directly. Despite not having heard of distcc before now.
+than to just build opencv on the raspberry directly. Despite not having heard of distcc before now. As in, I started building opencv on one raspberry first, and while that slowly progressing, I did all the other stuff on another raspberry and it still was quicker. By at least 12 hours.
 
 for reference:
 * http://askubuntu.com/questions/73491/no-such-file-or-directory-for-existing-executable/165536#165536
